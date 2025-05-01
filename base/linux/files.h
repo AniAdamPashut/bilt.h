@@ -22,17 +22,17 @@ char *GetCwd() {
   return currentPath;
 }
 
-void SetCwd(char *destination) {
-  chdir(destination);
+void SetCwd(String destination) {
+  chdir(destination.data);
   GetCwd();
 }
 
-FileData *GetDirFiles() {
+Folder *GetDirFiles(String initial) {
   struct dirent *entry;
   char *path = GetCwd();
   DIR *dp = opendir(path);
 
-  FileData *fileData = NewFileData();
+  Folder *folder = NewFolder();
 
   if (dp == NULL) {
     LogError("Couldn't open dir %s", path);
@@ -52,12 +52,12 @@ FileData *GetDirFiles() {
       continue;
     }
     
-    File *currFile = &fileData->files[fileData->fileCount];
-    Folder *currFolder = &fileData->folders[fileData->folderCount];
+    File *currFile = &folder->files[folder->fileCount];
+    Folder *currFolder = &folder->folders[folder->folderCount];
 
     if (S_ISDIR(sb.st_mode)) {
-      currFolder->name = strdup(entry->d_name);
-      fileData->folderCount++;
+      currFolder->name = s(strdup(entry->d_name));
+      folder->folderCount++;
     } else if (S_ISREG(sb.st_mode)) {
       char *dot = strrchr(entry->d_name, '.');
       const char *ext = (dot && dot != entry->d_name) ? dot + 1 : "";
@@ -66,17 +66,16 @@ FileData *GetDirFiles() {
       currFile->extension = strdup(ext);
       currFile->size = sb.st_size;
       currFile->modifyTime = sb.st_mtime;
-      currFile->createTime = sb.st_ctime;
 
-      fileData->fileCount++;
+      folder->fileCount++;
     }
 
-    fileData->totalCount++;
+    folder->totalCount++;
   }
 
   closedir(dp);
 
-  return fileData;
+  return folder;
 }
 
 errno_t FileStats(String *path, File *file) {
@@ -101,7 +100,6 @@ errno_t FileStats(String *path, File *file) {
   file->extension = strdup(ext);
   file->size = sb.st_size;
   file->modifyTime = sb.st_mtime;
-  file->createTime = sb.st_ctime;
 
   return SUCCESS;
 }

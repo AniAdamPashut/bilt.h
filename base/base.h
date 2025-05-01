@@ -342,23 +342,20 @@ typedef struct {
   char *name;
   char *extension;
   int64_t size;
-  int64_t createTime;
   int64_t modifyTime;
 } File;
 
-typedef struct {
-  char *name;
-} Folder;
+typedef struct folder_t {
+  String name;
 
-typedef struct {
-  Folder *folders;
+  struct folder_t *folders;
   size_t folderCount;
 
   File *files;
   size_t fileCount;
 
   size_t totalCount;
-} FileData;
+} Folder;
 
 #ifndef MAX_PATH
 #define MAX_PATH 260
@@ -366,9 +363,9 @@ typedef struct {
 extern char currentPath[MAX_PATH];
 
 char *GetCwd();
-void SetCwd(char *destination);
-FileData *GetDirFiles();
-FileData *NewFileData();
+void SetCwd(String destination);
+Folder *GetDirFiles(String initial);
+Folder *NewFolder();
 
 enum FileStatsError { FILE_GET_ATTRIBUTES_FAILED = 1 };
 errno_t FileStats(String *path, File *file);
@@ -918,8 +915,8 @@ f32 RandomFloat(f32 min, f32 max) {
 }
 
 /* File Implementation */
-FileData *NewFileData() {
-  FileData *fileData = (FileData *)malloc(sizeof(FileData));
+Folder *NewFolder() {
+  Folder *fileData = (Folder *)malloc(sizeof(Folder));
   fileData->files = (File *)malloc(MAX_FILES * sizeof(File));
   fileData->fileCount = 0;
   fileData->folders = (Folder *)malloc(MAX_FILES * sizeof(Folder));

@@ -28,7 +28,7 @@ FileData *GetDirFiles() {
   WIN32_FIND_DATA findData;
   HANDLE hFind;
   char searchPath[MAX_PATH];
-  FileData *fileData = NewFileData();
+  FileData *fileData = NewFolder();
   i32 result = snprintf(searchPath, MAX_PATH - 2, "%s\\*", currentPath);
   assert(result >= 0 && "sprint should not return error");
 
