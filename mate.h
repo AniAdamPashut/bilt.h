@@ -462,7 +462,7 @@ String InstallExecutable() {
   }
 
   String target = F(&state.arena,
-                    "build $target: link%s\n",
+                    "build $target: link%s\n"
                     "\n"
                     "default $target\n",
                     outputString.data);

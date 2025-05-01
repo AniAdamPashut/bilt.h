@@ -4,6 +4,9 @@
 
 #ifdef PLATFORM_WIN
 
+#include <windows.h>
+#include <winnt.h>
+
 i64 TimeNow() {
   FILETIME ft;
   GetSystemTimeAsFileTime(&ft);

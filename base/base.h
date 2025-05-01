@@ -89,7 +89,6 @@
 #define pclose _pclose
 
 /* File I/O functions */
-#define fileno _fileno
 #define fdopen _fdopen
 #define access _access
 #define unlink _unlink
@@ -988,6 +987,7 @@ void LogSuccess(const char *format, ...) {
 
 void LogInit() {
 #ifdef PLATFORM_WIN
+# define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
   HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
   DWORD dwMode = 0;
   GetConsoleMode(hOut, &dwMode);
