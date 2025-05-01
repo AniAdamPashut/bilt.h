@@ -69,3 +69,6 @@ and for making it easier to cross platform.
 - [ ] Actually parse `mate-cache.json` lmao
 - [ ] Properly clean the state and malloc operations
 - [ ] Add better error messages, eg. if someone doesnt use `StartBuild` before creating executable.
+
+
+love yourz
