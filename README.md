@@ -1,12 +1,17 @@
-> [!WARNING]
-> This is still very experimental
+# Bilt
+> fastly built
 
-# About:
+## What is this
+
 This was forked from [this repo]( https://github.com/TomasBorquez/mate.h). I liked what I saw and realized I wanted to take it to another direction working on this in my free time. Go sub his yt channel, he got lotta good stuff to say.
 
+Just experimenting with my own ideas
+
+# How to use it
+
 ```c 
-#define MATE_IMPLEMENTATION
-#include "mate.h"
+#define BILT_IMPLEMENTATION
+#include "bilt.h"
 
 i32 main() {
   StartBuild();
@@ -16,11 +21,6 @@ i32 main() {
 
     // Files to compile
     AddFile("./src/main.c");
-
-    // Libraries and includes
-    AddIncludePaths("C:/raylib/include", "./src");
-    AddLibraryPaths("C:/raylib/lib");
-    LinkSystemLibraries("raylib", "opengl32", "gdi32", "winmm");
 
     // Compiles all files parallely with ninja
     String exePath = InstallExecutable();

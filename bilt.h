@@ -1,58 +1,42 @@
-/* MIT License
-
-  mate.h - A single-header library for compiling your C code in C
-  Version - 2025-04-15 (0.1.4):
-  https://github.com/TomasBorquez/mate.h
-
-  Guide on the `README.md`
-*/
-
 #pragma once
 
-// NOTE: Only define BASE_IMPLEMENTATION if MATE_IMPLEMENTATION
-#ifdef MATE_IMPLEMENTATION
+#ifdef BILT_IMPLEMENTATION
 #define BASE_IMPLEMENTATION
 #endif
 
 #include "base/base.h"
 
-
-// --- MATE.H START ---
-/* MIT License
-   mate.h - Mate Definitions start here
-   Guide on the `README.md`
-*/
 typedef struct {
   i64 lastBuild;
   bool firstBuild;
-} MateCache;
+} BiltCache;
 
 typedef struct {
   char *compiler;
   char *buildDirectory;
-  char *mateSource;
-  char *mateExe;
-  char *mateCachePath;
-} MateOptions;
+  char *source;
+  char *exe;
+  char *cachePath;
+} BiltOptions;
 
 typedef struct {
   String compiler;
 
   // Paths
   String buildDirectory;
-  String mateSource;
-  String mateExe;
-  String mateCachePath;
+  String source;
+  String exe;
+  String cachePath;
 
   // Cache
-  MateCache mateCache;
+  BiltCache cache;
 
   // Misc
   Arena arena;
   bool customConfig;
   i64 startTime;
   i64 totalTime;
-} MateConfig;
+} BiltConfig;
 
 typedef struct {
   String output;
@@ -75,7 +59,7 @@ typedef struct {
   char *libs;
 } ExecutableOptions;
 
-void CreateConfig(MateOptions options);
+void CreateConfig(BiltOptions options);
 void StartBuild();
 void reBuild();
 void CreateExecutable(ExecutableOptions executableOptions);
@@ -113,12 +97,8 @@ void EndBuild();
 static bool needRebuild();
 static void setDefaultState();
 
-/* MIT License
-   mate.h - Mate Implementations start here
-   Guide on the `README.md`
-*/
-#ifdef MATE_IMPLEMENTATION
-static MateConfig state = {0};
+#ifdef BILT_IMPLEMENTATION
+static BiltConfig state = {0};
 static Executable executable = {0};
 
 String FixPathExe(String *str) {
@@ -153,37 +133,37 @@ String ConvertNinjaPath(String str) {
 
 static void setDefaultState() {
   state.arena = ArenaInit(12000 * sizeof(String));
-  state.mateSource = FixPath(&S("./mate.c"));
-  state.mateCachePath = FixPath(&S("./build/mate-cache.json"));
-  state.mateExe = FixPath(&S("./mate"));
+  state.source = FixPath(&S("./bilt.c"));
+  state.cachePath = FixPath(&S("./build/bilt-cache.json"));
+  state.exe = FixPath(&S("./bilt"));
   state.buildDirectory = ConvertPath(&state.arena, S("./build"));
   state.compiler = GetCompiler();
 }
 
-static MateConfig parseMateConfig(MateOptions options) {
-  MateConfig result;
+static BiltConfig parseBiltConfig(BiltOptions options) {
+  BiltConfig result;
   result.compiler = StrNew(&state.arena, options.compiler);
   result.buildDirectory = StrNew(&state.arena, options.buildDirectory);
-  result.mateExe = StrNew(&state.arena, options.mateExe);
-  result.mateCachePath = StrNew(&state.arena, options.mateCachePath);
-  result.mateSource = StrNew(&state.arena, options.mateSource);
+  result.exe = StrNew(&state.arena, options.exe);
+  result.cachePath = StrNew(&state.arena, options.cachePath);
+  result.source = StrNew(&state.arena, options.source);
   return result;
 }
 
-void CreateConfig(MateOptions options) {
+void CreateConfig(BiltOptions options) {
   setDefaultState();
-  MateConfig config = parseMateConfig(options);
+  BiltConfig config = parseBiltConfig(options);
 
-  if (!StrIsNull(&config.mateSource)) {
-    state.mateSource = FixPath(&config.mateSource);
+  if (!StrIsNull(&config.source)) {
+    state.source = FixPath(&config.source);
   }
 
-  if (!StrIsNull(&config.mateCachePath)) {
-    state.mateCachePath = FixPath(&config.mateCachePath);
+  if (!StrIsNull(&config.cachePath)) {
+    state.cachePath = FixPath(&config.cachePath);
   }
 
-  if (!StrIsNull(&config.mateExe)) {
-    state.mateExe = FixPath(&config.mateExe);
+  if (!StrIsNull(&config.exe)) {
+    state.exe = FixPath(&config.exe);
   }
 
   if (!StrIsNull(&config.buildDirectory)) {
@@ -199,19 +179,19 @@ void CreateConfig(MateOptions options) {
 
 errno_t readCache() {
   String cache = S("");
-  errno_t err = FileRead(&state.arena, &state.mateCachePath, &cache);
+  errno_t err = FileRead(&state.arena, &state.cachePath, &cache);
 
   if (err == FILE_NOT_EXIST) {
     String modifyTime = F(&state.arena, "%llu", TimeNow() / 1000);
-    FileWrite(&state.mateCachePath, &modifyTime);
-    state.mateCache.firstBuild = true;
+    FileWrite(&state.cachePath, &modifyTime);
+    state.cache.firstBuild = true;
     cache = modifyTime;
   } else if (err != SUCCESS) {
     return err;
   }
 
   char *endptr;
-  state.mateCache.lastBuild = strtoll(cache.data, &endptr, 10);
+  state.cache.lastBuild = strtoll(cache.data, &endptr, 10);
   return SUCCESS;
 }
 
@@ -229,15 +209,15 @@ void StartBuild() {
 
 static bool needRebuild() {
   File stats = {0};
-  errno_t result = FileStats(&state.mateSource, &stats);
+  errno_t result = FileStats(&state.source, &stats);
   if (result != SUCCESS) {
     LogError("Could not read fileStats %d", result);
     return false;
   }
 
-  if (stats.modifyTime > state.mateCache.lastBuild) {
+  if (stats.modifyTime > state.cache.lastBuild) {
     String modifyTime = F(&state.arena, "%llu", stats.modifyTime);
-    FileWrite(&state.mateCachePath, &modifyTime);
+    FileWrite(&state.cachePath, &modifyTime);
     return true;
   }
 
@@ -245,51 +225,51 @@ static bool needRebuild() {
 }
 
 void reBuild() {
-  if (state.mateCache.firstBuild || !needRebuild()) {
+  if (state.cache.firstBuild || !needRebuild()) {
     return;
   }
 
-  String mateExeNew = F(&state.arena, "%s/mate-new", state.buildDirectory.data);
-  String mateExeOld = F(&state.arena, "%s/mate-old", state.buildDirectory.data);
-  String mateExe = ConvertExe(&state.arena, state.mateExe);
-  mateExeNew = FixPathExe(&mateExeNew);
-  mateExeOld = FixPathExe(&mateExeOld);
+  String exeNew = F(&state.arena, "%s/bilt-new", state.buildDirectory.data);
+  String exeOld = F(&state.arena, "%s/bilt-old", state.buildDirectory.data);
+  String exe = ConvertExe(&state.arena, state.exe);
+  exeNew = FixPathExe(&exeNew);
+  exeOld = FixPathExe(&exeOld);
 
   String compileCommand;
   if (StrEqual(&state.compiler, &S("gcc"))) {
-    compileCommand = F(&state.arena, "gcc -o \"%s\" -Wall -g \"%s\"", mateExeNew.data, state.mateSource.data);
+    compileCommand = F(&state.arena, "gcc -o \"%s\" -Wall -g \"%s\"", exeNew.data, state.source.data);
   }
 
   if (StrEqual(&state.compiler, &S("clang"))) {
-    compileCommand = F(&state.arena, "clang -o \"%s\" -Wall -g \"%s\"", mateExeNew.data, state.mateSource.data);
+    compileCommand = F(&state.arena, "clang -o \"%s\" -Wall -g \"%s\"", exeNew.data, state.source.data);
   }
 
   if (StrEqual(&state.compiler, &S("MSVC"))) {
-    compileCommand = F(&state.arena, "cl.exe /Fe:\"%s\" /W4 /Zi \"%s\"", mateExeNew.data, state.mateSource.data);
+    compileCommand = F(&state.arena, "cl.exe /Fe:\"%s\" /W4 /Zi \"%s\"", exeNew.data, state.source.data);
   }
 
-  LogWarn("%s changed rebuilding...", state.mateSource.data);
+  LogWarn("%s changed rebuilding...", state.source.data);
   errno_t rebuildResult = RunCommand(compileCommand);
   if (rebuildResult != 0) {
     LogError("Rebuild failed, with error: %d", rebuildResult);
     abort();
   }
 
-  errno_t renameResult = FileRename(&mateExe, &mateExeOld);
+  errno_t renameResult = FileRename(&exe, &exeOld);
   if (renameResult != SUCCESS) {
     LogError("Error renaming original executable: %d", renameResult);
     abort();
   }
 
-  renameResult = FileRename(&mateExeNew, &mateExe);
+  renameResult = FileRename(&exeNew, &exe);
   if (renameResult != SUCCESS) {
     LogError("Error moving new executable into place: %d", renameResult);
-    FileRename(&mateExeOld, &state.mateExe);
+    FileRename(&exeOld, &state.exe);
     abort();
   }
 
-  LogInfo("Rebuild finished, running %s", mateExe.data);
-  errno_t result = RunCommand(mateExe);
+  LogInfo("Rebuild finished, running %s", exe.data);
+  errno_t result = RunCommand(exe);
   return exit(result);
 }
 
@@ -535,4 +515,3 @@ void EndBuild() {
   ArenaFree(&state.arena);
 }
 #endif
-// --- MATE.H END ---

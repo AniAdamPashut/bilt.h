@@ -1,4 +1,4 @@
-#define MATE_IMPLEMENTATION
+#define BILT_IMPLEMENTATION
 #include "bilt.h"
 
 i32 main() {

@@ -1,16 +1,3 @@
-/* MIT License
-
-  base.h - Better cross-platform std
-  Version - 2025-04-15 (0.1.4):
-  https://github.com/TomasBorquez/base.h
-
-  Usage:
-    #define BASE_IMPLEMENTATION
-    #include "base.h"
-
-  More on the the `README.md`
-*/
-
 #ifndef BASE_H
 #define BASE_H
 
