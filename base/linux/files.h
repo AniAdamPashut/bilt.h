@@ -6,6 +6,7 @@
 #ifdef PLATFORM_LINUX
 
 #include <unistd.h>
+#include <fcntl.h>
 #include <errno.h> 
 #include <dirent.h>
 #include <string.h>
@@ -130,14 +131,16 @@ errno_t FileRead(Arena *arena, String *path, String *result) {
 
 
 errno_t FileWrite(String *path, String *data) {
-  FILE *file;
+  // using open and write instead of fopen and fwrite cause it broke ninja.
+  // if you are smarter than me (or me in the future) and have a solve please suggest i
+  int fd = open(path->data, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 
-  if ((file = fopen(path->data, "w")) == NULL) {
-    LogError("Failed to open file: %s", path->data);
+  if (fd == -1) {
+    LogError("Couldn't open file %s", path->data);
     return FILE_OPEN_FAILED;
   }
 
-  if (fwrite(data->data, data->length, sizeof(char), file) != data->length)
+  if (write(fd, data->data, data->length) != data->length)
     return 1;  
   return SUCCESS;
 }

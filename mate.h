@@ -468,26 +468,22 @@ String InstallExecutable() {
                     outputString.data);
   ninjaOutput = StrConcat(&state.arena, &ninjaOutput, &target);
 
-  String convertedNinjaFilePath = ConvertPath(&state.arena, S("%s/build.ninja"));\
-  char *buildDir = FixPath(&state.buildDirectory).data;
-  String buildNinjaPath = F(&state.arena, convertedNinjaFilePath.data, FixPath(&state.buildDirectory).data);
+  String relativeBuildPath = F(&state.arena, "%s/build.ninja", state.buildDirectory.data);
+  String buildNinjaPath = FixPath(&relativeBuildPath);
   FileWrite(&buildNinjaPath, &ninjaOutput);
 
-  String convertedExePath = ConvertPath(&state.arena, S("%s/%s"));
-  String fullExePath = F(&state.arena, convertedExePath.data, FixPath(&state.buildDirectory).data, executable.output.data);
-
-  String ninjaCommand = F(&state.arena, "ninja -C %s", state.buildDirectory.data);
-  LogInfo("Executing %s", ninjaCommand.data);
-  LogInfo("build dir: %s", FixPath(&state.buildDirectory).data);
-
-  errno_t result = RunCommand(ninjaCommand);
+  
+  errno_t result = RunCommand(F(&state.arena, "ninja -f %s", buildNinjaPath.data));
   if (result != 0) {
     LogError("Ninja file compilation failed with code: %d", result);
     abort();
   }
-
+  
   LogSuccess("Ninja file compilation done");
   state.totalTime = TimeNow() - state.startTime;
+  
+  String relativeExePath = F(&state.arena, "%s/%s", state.buildDirectory.data, executable.output.data);
+  String fullExePath = FixPath(&relativeExePath);
   return fullExePath;
 }
 
