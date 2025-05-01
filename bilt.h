@@ -121,12 +121,12 @@ String FixPath(String *str) {
   String path = ConvertPath(&state.arena, *str);
   String cwd = GetCwd();
 #if defined(PLATFORM_WIN)
-  String formatted = FormatArena(&state.arena, "%s\\%s", cwd.data, path.data);
+  String formatted = FormatMalloc("%s\\%s", cwd.data, path.data);
 #elif defined(PLATFORM_LINUX)
-  String formatted = FormatArena(&state.arena, "%s/%s", cwd.data, path.data);
+  String formatted = FormatMalloc("%s/%s", cwd.data, path.data);
+#endif
   StrFree(cwd);
   return formatted;
-#endif
 }
 
 String ConvertNinjaPath(String str) {
@@ -399,19 +399,20 @@ static void _addDirectoryImpl(Folder *folder) {
 }
 
 static void addDirectory(String dir) {
-  Folder *initialFolder = GetDirFiles(dir);
+  Folder *initialFolder = GetDirFiles(FixPath(&dir));
   _addDirectoryImpl(initialFolder);
 }
 
 
 static StringVector outputTransformer(StringVector vector) {
   StringVector result = {0};
+  String sep = ConvertPath(&state.arena, S("/"));
   for (size_t i = 0; i < vector.length; i++) {
     String *currentExecutable = VecAt(vector, i);
     String output = S("");
     for (size_t j = currentExecutable->length - 1; j > 0; j--) {
       String currentChar = StrNewSize(&state.arena, &currentExecutable->data[j], 1);
-      if (currentChar.data[0] == '/') {
+      if (StrEqual(&sep, &currentChar)) {
         break;
       }
       output = StrConcat(&state.arena, &currentChar, &output);
@@ -476,7 +477,7 @@ String InstallExecutable() {
 
   String outputString = S("");
   for (size_t i = 0; i < executable.sources.length; i++) {
-    String sourceFile = *VecAt(executable.sources, i);
+    String sourceFile = ConvertNinjaPath(*VecAt(executable.sources, i));
     String outputFile = *VecAt(outputFiles, i);
     String source = FormatArena(&state.arena, "build $builddir/%s: compile %s\n", outputFile.data, sourceFile.data);
     ninjaOutput = StrConcat(&state.arena, &ninjaOutput, &source);
