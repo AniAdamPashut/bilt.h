@@ -301,7 +301,7 @@ String s(char *msg);
 #define FORMAT_CHECK(fmt_pos, args_pos)
 #endif
 
-String F(Arena *arena, const char *format, ...) FORMAT_CHECK(2, 3);
+String FormatArena(Arena *arena, const char *format, ...) FORMAT_CHECK(2, 3);
 
 VEC_TYPE(StringVector, String);
 #define StringVectorPushMany(vector, ...)                                                                                                                                                                                                      \
@@ -324,6 +324,7 @@ void StrToUpper(String *string1);
 void StrToLower(String *string1);
 bool StrIsNull(String *string);
 void StrTrim(String *string);
+void StrFree(String string);
 String StrSlice(Arena *arena, String *str, i32 start, i32 end);
 String ConvertExe(Arena *arena, String path);
 String ConvertPath(Arena *arena, String path);
@@ -339,36 +340,33 @@ f32 RandomFloat(f32 min, f32 max);
 #define MAX_FILES 200
 
 typedef struct {
-  char *name;
+  String name;
   char *extension;
   int64_t size;
-  int64_t createTime;
   int64_t modifyTime;
 } File;
 
-typedef struct {
-  char *name;
-} Folder;
+typedef struct folder_t {
+  String name;
 
-typedef struct {
-  Folder *folders;
+  struct folder_t *folders;
   size_t folderCount;
 
   File *files;
   size_t fileCount;
 
   size_t totalCount;
-} FileData;
+} Folder;
 
 #ifndef MAX_PATH
 #define MAX_PATH 260
 #endif
-extern char currentPath[MAX_PATH];
 
-char *GetCwd();
-void SetCwd(char *destination);
-FileData *GetDirFiles();
-FileData *NewFileData();
+String GetCwd();
+void SetCwd(String destination);
+Folder *GetDirFiles(String initial);
+Folder *NewFolder();
+void FreeFolder(Folder *folder);
 
 enum FileStatsError { FILE_GET_ATTRIBUTES_FAILED = 1 };
 errno_t FileStats(String *path, File *file);
@@ -411,9 +409,9 @@ void LogInit();
 #define __DEFER(N) __DEFER_(N)
 #define __DEFER_(N) __DEFER__(__DEFER_FUNCTION_##N, __DEFER_VARIABLE_##N)
 #define __DEFER__(F, V)                                                                                                                                                                                                                        \
-  auto void F(int *);                                                                                                                                                                                                                          \
-  [[gnu::cleanup(F)]] int V;                                                                                                                                                                                                                   \
-  auto void F(int *)
+  auto void FormatArena(int *);                                                                                                                                                                                                                          \
+  [[gnu::cleanup(FormatArena)]] int V;                                                                                                                                                                                                                   \
+  auto void FormatArena(int *)
 
 /* - Clang implementation -
   NOTE: Must compile with flag `-fblocks`
@@ -797,7 +795,25 @@ String StrSlice(Arena *arena, String *str, i32 start, i32 end) {
   return StrNewSize(arena, str->data + start, len);
 }
 
-String F(Arena *arena, const char *format, ...) {
+void StrFree(String string) {
+  free(string.data);
+}
+
+String FormatMalloc(const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  size_t size = vsnprintf(NULL, 0, format, args) + 1; // +1 for null terminator
+  va_end(args);
+
+  char *buffer = (char *)malloc(size);
+  va_start(args, format);
+  vsnprintf(buffer, size, format, args);
+  va_end(args);
+
+  return (String){.length = size - 1, .data = buffer};
+}
+
+String FormatArena(Arena *arena, const char *format, ...) {
   va_list args;
   va_start(args, format);
   size_t size = vsnprintf(NULL, 0, format, args) + 1; // +1 for null terminator
@@ -918,15 +934,32 @@ f32 RandomFloat(f32 min, f32 max) {
 }
 
 /* File Implementation */
-FileData *NewFileData() {
-  FileData *fileData = (FileData *)malloc(sizeof(FileData));
+Folder *NewFolder() {
+  Folder *fileData = (Folder *)malloc(sizeof(Folder));
   fileData->files = (File *)malloc(MAX_FILES * sizeof(File));
   fileData->fileCount = 0;
   fileData->folders = (Folder *)malloc(MAX_FILES * sizeof(Folder));
   fileData->folderCount = 0;
   fileData->totalCount = 0;
+  fileData->name = S("");
   return fileData;
 };
+
+void FreeFolder(Folder *folder) {
+  for (size_t i = 0; i < folder->fileCount; i++) {
+    File *file = folder->files + i;
+    free(file);
+    folder->totalCount--;
+  }
+
+  for (size_t i = 0; i < folder->folderCount; i++) {
+    Folder *subfolder = folder->folders + i;
+    FreeFolder(subfolder);
+    folder->totalCount--;
+  }
+  free(folder);
+  assert(folder->totalCount == 0 && "Should free every item in folder");
+}
 
 #ifdef PLATFORM_WIN
 # include "windows/files.h"

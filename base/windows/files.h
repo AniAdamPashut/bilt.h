@@ -7,35 +7,36 @@
 
 #include <windows.h>
 
-char currentPath[MAX_PATH];
-char *GetCwd() {
+String GetCwd() {
+  char *currentPath = malloc(MAX_PATH + 1);
   DWORD length = GetCurrentDirectory(MAX_PATH, currentPath);
   if (length == 0) {
-    printf("Error getting current directory: %lu\n", GetLastError());
-    return "";
+    LogError("Error getting current directory: %lu\n", GetLastError());
+    abort();
   }
-  return currentPath;
+  return s(currentPath);
 }
-void SetCwd(char *destination) {
-  bool result = SetCurrentDirectory(destination);
+void SetCwd(String destination) {
+  bool result = SetCurrentDirectory(destination.data);
   if (!result) {
     printf("Error setting cwd: %lu\n", GetLastError());
   }
   GetCwd();
 }
 
-FileData *GetDirFiles() {
+Folder *GetDirFiles(String initial) {
   WIN32_FIND_DATA findData;
   HANDLE hFind;
-  char searchPath[MAX_PATH];
-  FileData *fileData = NewFileData();
-  i32 result = snprintf(searchPath, MAX_PATH - 2, "%s\\*", currentPath);
-  assert(result >= 0 && "sprint should not return error");
 
-  hFind = FindFirstFile(searchPath, &findData);
+  LogInfo("Scanning %s", initial.data);
+
+  Folder *folder = NewFolder();
+  folder->name = initial; 
+
+  hFind = FindFirstFile(FormatMalloc("%s\\*", initial.data).data, &findData);
   if (hFind == INVALID_HANDLE_VALUE) {
-    printf("Error finding files: %lu\n", GetLastError());
-    return NULL;
+    LogError("Error finding files: %lu\n", GetLastError());
+    abort();
   }
 
   do {
@@ -43,35 +44,31 @@ FileData *GetDirFiles() {
       continue;
     }
 
-    if (fileData->totalCount >= MAX_FILES) {
-      printf("Warning: Maximum file count reached (%d). Some files might be skipped.\n", MAX_FILES);
-      break;
+    if (folder->totalCount >= MAX_FILES) {
+      LogError("Warning: Maximum file count reached (%d). Some files might be skipped.\n", MAX_FILES);
+      abort();
     }
 
     bool isDirectory = findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
-    File *currFile = &fileData->files[fileData->fileCount];
-    Folder *currFolder = &fileData->folders[fileData->folderCount];
+    File *currFile = &folder->files[folder->fileCount];
+    Folder *currFolder = &folder->folders[folder->folderCount];
 
     if (isDirectory) {
-      currFolder->name = strdup(findData.cFileName);
-      fileData->folderCount++;
+      *currFolder = *GetDirFiles(FormatMalloc("%s\\%s", initial.data, findData.cFileName));
+      folder->folderCount++;
     }
 
     if (!isDirectory) {
       char *dot = strrchr(findData.cFileName, '.');
       if (dot != NULL) {
         currFile->extension = strdup(dot + 1);
-
-        size_t baseNameLength = dot - findData.cFileName;
-        char *baseName = (char *)malloc(baseNameLength + 1);
-        memcpy(baseName, findData.cFileName, baseNameLength);
-        baseName[baseNameLength] = '\0';
-        currFile->name = baseName;
+;
+        currFile->name = s(strdup(findData.cFileName));
       }
 
       if (dot == NULL) {
         currFile->extension = strdup("");
-        currFile->name = strdup(findData.cFileName);
+        currFile->name = s(strdup(findData.cFileName));
       }
 
       LARGE_INTEGER createTime, modifyTime;
@@ -83,13 +80,12 @@ FileData *GetDirFiles() {
       const i64 WINDOWS_TICK = 10000000;
       const i64 SEC_TO_UNIX_EPOCH = 11644473600LL;
 
-      currFile->createTime = createTime.QuadPart / WINDOWS_TICK - SEC_TO_UNIX_EPOCH;
       currFile->modifyTime = modifyTime.QuadPart / WINDOWS_TICK - SEC_TO_UNIX_EPOCH;
       currFile->size = (((i64)findData.nFileSizeHigh) << 32) | findData.nFileSizeLow;
-      fileData->fileCount++;
+      folder->fileCount++;
     }
 
-    fileData->totalCount++;
+    folder->totalCount++;
   } while (FindNextFile(hFind, &findData) != 0);
 
   DWORD dwError = GetLastError();
@@ -98,27 +94,7 @@ FileData *GetDirFiles() {
   }
 
   FindClose(hFind);
-  return fileData;
-}
-
-void FreeFileData(FileData *fileData) {
-  if (fileData->files == NULL && fileData->folders == NULL) return;
-
-  for (size_t i = 0; i < fileData->fileCount; i++) {
-    File currentFile = fileData->files[i];
-    free(currentFile.name);
-    free(currentFile.extension);
-  }
-
-  free(fileData->files);
-
-  for (size_t i = 0; i < fileData->folderCount; i++) {
-    Folder currentFolder = fileData->folders[i];
-    free(currentFolder.name);
-  }
-
-  free(fileData->folders);
-  free(fileData);
+  return folder;
 }
 
 errno_t FileStats(String *path, File *result) {
@@ -150,7 +126,7 @@ errno_t FileStats(String *path, File *result) {
     nameStart = pathStr;
   }
 
-  result->name = strdup(nameStart);
+  result->name = s(strdup(nameStart));
 
   char *extStart = strrchr(nameStart, '.');
   if (extStart) {
@@ -173,7 +149,6 @@ errno_t FileStats(String *path, File *result) {
   const i64 WINDOWS_TICK = 10000000;
   const i64 SEC_TO_UNIX_EPOCH = 11644473600LL;
 
-  result->createTime = createTime.QuadPart / WINDOWS_TICK - SEC_TO_UNIX_EPOCH;
   result->modifyTime = modifyTime.QuadPart / WINDOWS_TICK - SEC_TO_UNIX_EPOCH;
 
   free(pathStr);

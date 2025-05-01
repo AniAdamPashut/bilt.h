@@ -11,31 +11,30 @@
 #include <dirent.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <linux/limits.h>
 
-char currentPath[MAX_PATH];
-
-char *GetCwd() {
-  if (getcwd(currentPath, MAX_PATH) == NULL) {
+String GetCwd() {
+  char *cwd = malloc(PATH_MAX);
+  if (getcwd(cwd, MAX_PATH) == NULL) {
     LogError("Wasn't able to call getcwd, %d", errno);
     abort();
   }
-  return currentPath;
+  return s(cwd);
 }
 
-void SetCwd(char *destination) {
-  chdir(destination);
-  GetCwd();
+void SetCwd(String destination) {
+  chdir(destination.data);
 }
 
-FileData *GetDirFiles() {
+Folder *GetDirFiles(String initial) {
   struct dirent *entry;
-  char *path = GetCwd();
-  DIR *dp = opendir(path);
+  DIR *dp = opendir(initial.data);
 
-  FileData *fileData = NewFileData();
-
+  Folder *folder = NewFolder();
+  folder->name = initial;
+  
   if (dp == NULL) {
-    LogError("Couldn't open dir %s", path);
+    LogError("Couldn't open dir %s %d", initial.data, errno);
     abort();
   }
 
@@ -44,7 +43,7 @@ FileData *GetDirFiles() {
         continue;
 
     char fullpath[4096];
-    snprintf(fullpath, sizeof(fullpath), "%s/%s", path, entry->d_name); 
+    snprintf(fullpath, sizeof(fullpath), "%s/%s", initial.data, entry->d_name); 
     
     struct stat sb;
     if (stat(fullpath, &sb) == -1) {
@@ -52,31 +51,30 @@ FileData *GetDirFiles() {
       continue;
     }
     
-    File *currFile = &fileData->files[fileData->fileCount];
-    Folder *currFolder = &fileData->folders[fileData->folderCount];
-
+    File *currFile = &folder->files[folder->fileCount];
+    Folder *currFolder = &folder->folders[folder->folderCount];
+    
     if (S_ISDIR(sb.st_mode)) {
-      currFolder->name = strdup(entry->d_name);
-      fileData->folderCount++;
+      *currFolder = *GetDirFiles(FormatMalloc("%s/%s", initial.data, entry->d_name));
+      folder->folderCount++;
     } else if (S_ISREG(sb.st_mode)) {
       char *dot = strrchr(entry->d_name, '.');
       const char *ext = (dot && dot != entry->d_name) ? dot + 1 : "";
       
-      currFile->name = strdup(entry->d_name);
+      currFile->name = s(strdup(entry->d_name));
       currFile->extension = strdup(ext);
       currFile->size = sb.st_size;
       currFile->modifyTime = sb.st_mtime;
-      currFile->createTime = sb.st_ctime;
 
-      fileData->fileCount++;
+      folder->fileCount++;
     }
 
-    fileData->totalCount++;
+    folder->totalCount++;
   }
 
   closedir(dp);
 
-  return fileData;
+  return folder;
 }
 
 errno_t FileStats(String *path, File *file) {
@@ -97,11 +95,10 @@ errno_t FileStats(String *path, File *file) {
   char *dot = strrchr(pathCstr, '.');
   const char *ext = (dot && dot != pathCstr) ? dot + 1 : "";
   
-  file->name = strdup(pathCstr);
+  file->name = s(strdup(pathCstr));
   file->extension = strdup(ext);
   file->size = sb.st_size;
   file->modifyTime = sb.st_mtime;
-  file->createTime = sb.st_ctime;
 
   return SUCCESS;
 }

@@ -1,3 +1,3 @@
-- Revamp the `base.h` fs interactions
-- rewrite for windows and linux
-- Add testing frameworks
+- [x] Revamp the `base.h` fs interactions
+- [x] rewrite for windows and linux
+- [ ] Add testing frameworks
