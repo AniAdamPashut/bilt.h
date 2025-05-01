@@ -94,6 +94,10 @@ static void addFile(String source);
 #define AddDirectory(dir) addDirectory(S(dir));
 static void addDirectory(String dir);
 
+StringVector _validFileExtensions = {0};
+
+#define AllowFileExtensions(...) StringVectorPushMany(_validFileExtensions, __VA_ARGS__)
+
 String InstallExecutable();
 i32 RunCommand(String command);
 void EndBuild();
@@ -102,6 +106,7 @@ static bool needRebuild();
 static void setDefaultState();
 
 #ifdef BILT_IMPLEMENTATION
+
 static BiltConfig state = {0};
 static Executable executable = {0};
 
@@ -378,14 +383,22 @@ static void addFile(String source) {
   VecPush(executable.sources, source);
 }
 
-#define ISVAL_FILE(ext) strcmp(ext, "c") == 0
+static bool isValidFileExtension(char *ext) {
+  for (size_t i = 0; i < _validFileExtensions.length; i++)
+  {
+    String validExtension = *VecAt(_validFileExtensions, i);
+    if (strncmp(ext, validExtension.data, strlen(ext)) == 0)
+      return true;
+  }
+  return false;  
+}
 
 static void _addDirectoryImpl(Folder *folder) {
   LogInfo("Steping into folder %s", folder->name.data);
   
   for (int i = 0; i < folder->fileCount; i++) {
     File* curr = folder->files + i;
-    if (!ISVAL_FILE(curr->extension)) {
+    if (!isValidFileExtension(curr->extension)) {
       continue;
     }
     String fullPath = FormatMalloc("%s/%s", folder->name.data, curr->name.data);
@@ -399,6 +412,9 @@ static void _addDirectoryImpl(Folder *folder) {
 }
 
 static void addDirectory(String dir) {
+  if (_validFileExtensions.data == 0) {
+    VecPush(_validFileExtensions, S("c"));
+  }
   Folder *initialFolder = GetDirFiles(FixPath(&dir));
   _addDirectoryImpl(initialFolder);
   FreeFolder(initialFolder);
