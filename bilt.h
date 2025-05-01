@@ -103,19 +103,25 @@ static Executable executable = {0};
 
 String FixPathExe(String *str) {
   String path = ConvertPath(&state.arena, ConvertExe(&state.arena, *str));
+  String cwd = GetCwd();
 #if defined(PLATFORM_WIN)
-  return F(&state.arena, "%s\\%s", GetCwd(), path.data);
+  String formatted_path = F(&state.arena, "%s\\%s", cwd.data, path.data);
 #elif defined(PLATFORM_LINUX)
-  return F(&state.arena, "%s/%s", GetCwd(), path.data);
+  String formatted_path = F(&state.arena, "%s/%s", cwd.data, path.data);
 #endif
+  StrFree(cwd);
+  return formatted_path;
 }
 
 String FixPath(String *str) {
   String path = ConvertPath(&state.arena, *str);
+  String cwd = GetCwd();
 #if defined(PLATFORM_WIN)
-  return F(&state.arena, "%s\\%s", GetCwd(), path.data);
+  String formatted = F(&state.arena, "%s\\%s", cwd.data, path.data);
 #elif defined(PLATFORM_LINUX)
-  return F(&state.arena, "%s/%s", GetCwd(), path.data);
+  String formatted = F(&state.arena, "%s/%s", cwd.data, path.data);
+  StrFree(cwd);
+  return formatted;
 #endif
 }
 
@@ -325,9 +331,13 @@ errno_t CreateCompileCommands() {
   FILE *outputFile;
   char buffer[4096];
   size_t bytes_read;
+  
+  String cwd = GetCwd();
 
-  String buildPath = StrNew(&state.arena, F(&state.arena, "%s/%s", GetCwd(), ParsePath(&state.arena, state.buildDirectory).data).data);
+  String buildPath = StrNew(&state.arena, F(&state.arena, "%s/%s", cwd.data, ParsePath(&state.arena, state.buildDirectory).data).data);
   String compileCommandsPath = ConvertPath(&state.arena, F(&state.arena, "%s/compile_commands.json", buildPath.data));
+
+  StrFree(cwd);
 
   outputFile = fopen(compileCommandsPath.data, "w");
   if (outputFile == NULL) {
@@ -405,7 +415,7 @@ String InstallExecutable() {
     LogError("MSVC not yet implemented");
     abort();
   }
-
+  String cwd = GetCwd();
   String ninjaOutput = F(&state.arena,
                          "cc = %s\n"
                          "linker_flag = %s\n"
@@ -421,13 +431,14 @@ String InstallExecutable() {
                          state.compiler.data,
                          executable.linkerFlags.data,
                          executable.flags.data,
-                         ConvertNinjaPath(StrNew(&state.arena, GetCwd())).data,
+                         ConvertNinjaPath(StrNew(&state.arena, cwd.data)).data,
                          state.buildDirectory.data,
                          executable.output.data,
                          executable.includes.data,
                          executable.libs.data,
                          linkCommand.data,
                          compileCommand.data);
+  StrFree(cwd);
   StringVector outputFiles = outputTransformer(executable.sources);
 
   assert(outputFiles.length == executable.sources.length && "Something went wrong in the parsing");

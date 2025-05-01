@@ -11,31 +11,29 @@
 #include <dirent.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <linux/limits.h>
 
-char currentPath[MAX_PATH];
-
-char *GetCwd() {
-  if (getcwd(currentPath, MAX_PATH) == NULL) {
+String GetCwd() {
+  char *cwd = malloc(PATH_MAX);
+  if (getcwd(cwd, MAX_PATH) == NULL) {
     LogError("Wasn't able to call getcwd, %d", errno);
     abort();
   }
-  return currentPath;
+  return s(cwd);
 }
 
 void SetCwd(String destination) {
   chdir(destination.data);
-  GetCwd();
 }
 
 Folder *GetDirFiles(String initial) {
   struct dirent *entry;
-  char *path = GetCwd();
-  DIR *dp = opendir(path);
+  DIR *dp = opendir(initial.data);
 
   Folder *folder = NewFolder();
 
   if (dp == NULL) {
-    LogError("Couldn't open dir %s", path);
+    LogError("Couldn't open dir %s", initial.data);
     abort();
   }
 
@@ -44,7 +42,7 @@ Folder *GetDirFiles(String initial) {
         continue;
 
     char fullpath[4096];
-    snprintf(fullpath, sizeof(fullpath), "%s/%s", path, entry->d_name); 
+    snprintf(fullpath, sizeof(fullpath), "%s/%s", initial.data, entry->d_name); 
     
     struct stat sb;
     if (stat(fullpath, &sb) == -1) {

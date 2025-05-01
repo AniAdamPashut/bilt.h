@@ -324,6 +324,7 @@ void StrToUpper(String *string1);
 void StrToLower(String *string1);
 bool StrIsNull(String *string);
 void StrTrim(String *string);
+void StrFree(String string);
 String StrSlice(Arena *arena, String *str, i32 start, i32 end);
 String ConvertExe(Arena *arena, String path);
 String ConvertPath(Arena *arena, String path);
@@ -360,9 +361,8 @@ typedef struct folder_t {
 #ifndef MAX_PATH
 #define MAX_PATH 260
 #endif
-extern char currentPath[MAX_PATH];
 
-char *GetCwd();
+String GetCwd();
 void SetCwd(String destination);
 Folder *GetDirFiles(String initial);
 Folder *NewFolder();
@@ -792,6 +792,10 @@ String StrSlice(Arena *arena, String *str, i32 start, i32 end) {
 
   size_t len = end - start;
   return StrNewSize(arena, str->data + start, len);
+}
+
+void StrFree(String string) {
+  free(string.data);
 }
 
 String F(Arena *arena, const char *format, ...) {
