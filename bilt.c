@@ -1,5 +1,5 @@
 #define MATE_IMPLEMENTATION
-#include "mate.h"
+#include "bilt.h"
 
 i32 main() {
   StartBuild();
