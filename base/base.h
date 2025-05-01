@@ -366,6 +366,7 @@ String GetCwd();
 void SetCwd(String destination);
 Folder *GetDirFiles(String initial);
 Folder *NewFolder();
+void FreeFolder(Folder *folder);
 
 enum FileStatsError { FILE_GET_ATTRIBUTES_FAILED = 1 };
 errno_t FileStats(String *path, File *file);
@@ -943,6 +944,22 @@ Folder *NewFolder() {
   fileData->name = S("");
   return fileData;
 };
+
+void FreeFolder(Folder *folder) {
+  for (size_t i = 0; i < folder->fileCount; i++) {
+    File *file = folder->files + i;
+    free(file);
+    folder->totalCount--;
+  }
+
+  for (size_t i = 0; i < folder->folderCount; i++) {
+    Folder *subfolder = folder->folders + i;
+    FreeFolder(subfolder);
+    folder->totalCount--;
+  }
+  free(folder);
+  assert(folder->totalCount == 0 && "Should free every item in folder");
+}
 
 #ifdef PLATFORM_WIN
 # include "windows/files.h"

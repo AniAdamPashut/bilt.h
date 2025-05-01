@@ -401,6 +401,7 @@ static void _addDirectoryImpl(Folder *folder) {
 static void addDirectory(String dir) {
   Folder *initialFolder = GetDirFiles(FixPath(&dir));
   _addDirectoryImpl(initialFolder);
+  FreeFolder(initialFolder);
 }
 
 
