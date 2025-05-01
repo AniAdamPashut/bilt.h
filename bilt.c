@@ -7,6 +7,7 @@ i32 main() {
     // Sets the output name and different flags
     CreateExecutable((ExecutableOptions){.output = "main", .flags = "-Wall -ggdb"});
 
+    AllowFileExtensions("c");
     // Files to compile
     AddDirectory("./src");
     
