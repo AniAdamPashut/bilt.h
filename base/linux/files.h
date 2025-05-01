@@ -31,9 +31,10 @@ Folder *GetDirFiles(String initial) {
   DIR *dp = opendir(initial.data);
 
   Folder *folder = NewFolder();
-
+  folder->name = initial;
+  
   if (dp == NULL) {
-    LogError("Couldn't open dir %s", initial.data);
+    LogError("Couldn't open dir %s %d", initial.data, errno);
     abort();
   }
 
@@ -52,15 +53,15 @@ Folder *GetDirFiles(String initial) {
     
     File *currFile = &folder->files[folder->fileCount];
     Folder *currFolder = &folder->folders[folder->folderCount];
-
+    
     if (S_ISDIR(sb.st_mode)) {
-      currFolder->name = s(strdup(entry->d_name));
+      *currFolder = *GetDirFiles(FormatMalloc("%s/%s", initial.data, entry->d_name));
       folder->folderCount++;
     } else if (S_ISREG(sb.st_mode)) {
       char *dot = strrchr(entry->d_name, '.');
       const char *ext = (dot && dot != entry->d_name) ? dot + 1 : "";
       
-      currFile->name = strdup(entry->d_name);
+      currFile->name = s(strdup(entry->d_name));
       currFile->extension = strdup(ext);
       currFile->size = sb.st_size;
       currFile->modifyTime = sb.st_mtime;
@@ -94,7 +95,7 @@ errno_t FileStats(String *path, File *file) {
   char *dot = strrchr(pathCstr, '.');
   const char *ext = (dot && dot != pathCstr) ? dot + 1 : "";
   
-  file->name = strdup(pathCstr);
+  file->name = s(strdup(pathCstr));
   file->extension = strdup(ext);
   file->size = sb.st_size;
   file->modifyTime = sb.st_mtime;

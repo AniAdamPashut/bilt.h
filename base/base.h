@@ -301,7 +301,7 @@ String s(char *msg);
 #define FORMAT_CHECK(fmt_pos, args_pos)
 #endif
 
-String F(Arena *arena, const char *format, ...) FORMAT_CHECK(2, 3);
+String FormatArena(Arena *arena, const char *format, ...) FORMAT_CHECK(2, 3);
 
 VEC_TYPE(StringVector, String);
 #define StringVectorPushMany(vector, ...)                                                                                                                                                                                                      \
@@ -340,7 +340,7 @@ f32 RandomFloat(f32 min, f32 max);
 #define MAX_FILES 200
 
 typedef struct {
-  char *name;
+  String name;
   char *extension;
   int64_t size;
   int64_t modifyTime;
@@ -408,9 +408,9 @@ void LogInit();
 #define __DEFER(N) __DEFER_(N)
 #define __DEFER_(N) __DEFER__(__DEFER_FUNCTION_##N, __DEFER_VARIABLE_##N)
 #define __DEFER__(F, V)                                                                                                                                                                                                                        \
-  auto void F(int *);                                                                                                                                                                                                                          \
-  [[gnu::cleanup(F)]] int V;                                                                                                                                                                                                                   \
-  auto void F(int *)
+  auto void FormatArena(int *);                                                                                                                                                                                                                          \
+  [[gnu::cleanup(FormatArena)]] int V;                                                                                                                                                                                                                   \
+  auto void FormatArena(int *)
 
 /* - Clang implementation -
   NOTE: Must compile with flag `-fblocks`
@@ -798,7 +798,21 @@ void StrFree(String string) {
   free(string.data);
 }
 
-String F(Arena *arena, const char *format, ...) {
+String FormatMalloc(const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  size_t size = vsnprintf(NULL, 0, format, args) + 1; // +1 for null terminator
+  va_end(args);
+
+  char *buffer = (char *)malloc(size);
+  va_start(args, format);
+  vsnprintf(buffer, size, format, args);
+  va_end(args);
+
+  return (String){.length = size - 1, .data = buffer};
+}
+
+String FormatArena(Arena *arena, const char *format, ...) {
   va_list args;
   va_start(args, format);
   size_t size = vsnprintf(NULL, 0, format, args) + 1; // +1 for null terminator
@@ -926,6 +940,7 @@ Folder *NewFolder() {
   fileData->folders = (Folder *)malloc(MAX_FILES * sizeof(Folder));
   fileData->folderCount = 0;
   fileData->totalCount = 0;
+  fileData->name = S("");
   return fileData;
 };
 
