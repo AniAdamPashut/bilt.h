@@ -1,8 +1,8 @@
 - [x] Revamp the `base.h` fs interactions
 - [x] rewrite for windows and linux
+- [x] Support for multiple file extensions
 - [ ] Check that users doesn't include files twice
 - [ ] Debug vs Release presets
 - [ ] Add testing frameworks
-- [ ] Support for multiple file extensions
 - [ ] Refactor to higher standards
 - [ ] Allow linking to git repositories

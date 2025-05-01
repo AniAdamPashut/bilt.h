@@ -7,8 +7,6 @@ This was forked from [this repo]( https://github.com/TomasBorquez/mate.h). I lik
 
 Just experimenting with my own ideas
 
-**This Supports Only .c Files Currently**
-
 Tested on gcc (both windows and linux). Feel free to open an issue for whatever thing you feel you need.
 
 # How to use it
@@ -25,6 +23,8 @@ i32 main() {
 
     // Adds file to compile
     AddFile("./src/main.c");
+
+    AllowFileExtensions("c", "cc");
 
     // Recursively adds the whole directory
     AddDirectory("./src");
