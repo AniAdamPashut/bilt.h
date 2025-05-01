@@ -8,8 +8,8 @@ i32 main() {
     CreateExecutable((ExecutableOptions){.output = "main", .flags = "-Wall -ggdb"});
 
     // Files to compile
-    AddFile("./src/main.c");
-
+    AddDirectory("./src");
+    
     // Compiles all files parallely with ninja
     String exePath = InstallExecutable();
 
