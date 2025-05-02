@@ -957,8 +957,8 @@ void FreeFolder(Folder *folder) {
     FreeFolder(subfolder);
     folder->totalCount--;
   }
-  free(folder);
   assert(folder->totalCount == 0 && "Should free every item in folder");
+  free(folder);
 }
 
 #ifdef PLATFORM_WIN
