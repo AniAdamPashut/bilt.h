@@ -128,17 +128,19 @@ errno_t FileRead(Arena *arena, String *path, String *result) {
 
 
 errno_t FileWrite(String *path, String *data) {
-  // using open and write instead of fopen and fwrite cause it broke ninja.
-  // if you are smarter than me (or me in the future) and have a solve please suggest i
-  int fd = open(path->data, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+  FILE *fp = fopen(path->data, "w");
 
-  if (fd == -1) {
+  if (fp == NULL) {
     LogError("Couldn't open file %s", path->data);
     return FILE_OPEN_FAILED;
   }
 
-  if (write(fd, data->data, data->length) != data->length)
-    return 1;  
+  if (fwrite(data->data, data->length, sizeof(char), fp) != data->length) { 
+    fclose(fp);
+    return 1;
+  }
+  
+  fclose(fp);
   return SUCCESS;
 }
 
