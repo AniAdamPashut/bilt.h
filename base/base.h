@@ -951,7 +951,7 @@ void _freeFolderRecursiveImpl(Folder *folder){
 
   for (size_t i = 0; i < folder->folderCount; i++) {
     Folder *subfolder = folder->folders + i;
-    FreeFolder(subfolder);
+    _freeFolderRecursiveImpl(subfolder);
     folder->totalCount--;
   }
   free(folder->folders);
