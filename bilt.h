@@ -450,19 +450,14 @@ String InstallExecutable() {
 
   String linkCommand;
   String compileCommand;
-  if (StrEqual(&state.compiler, &S("gcc"))) {
-    linkCommand = FormatArena(&state.arena, "rule link\n  command = $cc $flags $linker_flags -o $out $in $libs\n");
-    compileCommand = FormatArena(&state.arena, "rule compile\n  command = $cc $flags $includes -c $in -o $out\n");
-  }
 
-  if (StrEqual(&state.compiler, &S("clang"))) {
-    linkCommand = FormatArena(&state.arena, "rule link\n  command = $cc $flags $linker_flags -o $out $in $libs\n");
-    compileCommand = FormatArena(&state.arena, "rule compile\n  command = $cc $flags $includes -c $in -o $out\n");
-  }
-
+  // TODO: a hashmap or something
   if (StrEqual(&state.compiler, &S("MSVC"))) {
     LogError("MSVC not yet implemented");
     abort();
+  } else {
+    linkCommand = FormatArena(&state.arena, "rule link\n  command = $cc $flags $linker_flags -o $out $in $libs\n");
+    compileCommand = FormatArena(&state.arena, "rule compile\n  command = $cc $flags $includes -c $in -o $out\n");
   }
   String cwd = GetCwd();
   String ninjaOutput = FormatArena(&state.arena,

@@ -1,8 +1,14 @@
 - [x] Revamp the `base.h` fs interactions
 - [x] rewrite for windows and linux
 - [x] Support for multiple file extensions
+- [x] Make it possible to set a compiler by hand
+- [ ] Remove the usage of the arena (literally crashes on large projects)
 - [ ] Check that users doesn't include files twice
-- [ ] Debug vs Release presets
+- [ ] Add non-recursive directories
+- [ ] Support creating libraries (static and dynamic)
+- [ ] Support linking distributed libraries like cmake and meson (absl for example)
 - [ ] Add testing frameworks
+- [ ] Replace-able Backends
+- [ ] Debug vs Release presets
 - [ ] Refactor to higher standards
 - [ ] Allow linking to git repositories

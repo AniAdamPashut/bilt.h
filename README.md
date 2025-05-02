@@ -9,6 +9,14 @@ Just experimenting with my own ideas
 
 Tested on gcc (both windows and linux). Feel free to open an issue for whatever thing you feel you need.
 
+# How to compile this
+
+You can use the following command to compile it to generate an header file to your platform. 
+
+```sh
+gcc -E -P -fdirectives-only bilt.h -DBILT_IMPLEMENTATION > bilt.h   
+```
+
 # How to use it
 
 ```c 
