@@ -14,8 +14,8 @@
 #include <linux/limits.h>
 
 String GetCwd() {
-  char *cwd = malloc(PATH_MAX);
-  if (getcwd(cwd, MAX_PATH) == NULL) {
+  char *cwd = malloc(PATH_MAX + 1);
+  if (getcwd(cwd, PATH_MAX) == NULL) {
     LogError("Wasn't able to call getcwd, %d", errno);
     abort();
   }

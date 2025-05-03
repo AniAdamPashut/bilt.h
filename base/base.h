@@ -69,6 +69,8 @@
 #include <time.h>
 #include <stdbool.h>
 
+#include "vectors.h"
+
 /* --- Platform Specific --- */
 #ifdef PLATFORM_WIN
 /* Process functions */
@@ -150,118 +152,7 @@ typedef struct {
   char *data;
 } String;
 
-// Maximum values for integer types
-#define U8_MAX UINT8_MAX
-#define U16_MAX UINT16_MAX
-#define U32_MAX UINT32_MAX
-#define U64_MAX UINT64_MAX
-
-#define S8_MAX INT8_MAX
-#define S8_MIN INT8_MIN
-#define S16_MAX INT16_MAX
-#define S16_MIN INT16_MIN
-#define S32_MAX INT32_MAX
-#define S32_MIN INT32_MIN
-#define S64_MAX INT64_MAX
-#define S64_MIN INT64_MIN
-
-#define I8_MAX INT8_MAX
-#define I8_MIN INT8_MIN
-#define I16_MAX INT16_MAX
-#define I16_MIN INT16_MIN
-#define I32_MAX INT32_MAX
-#define I32_MIN INT32_MIN
-#define I64_MAX INT64_MAX
-#define I64_MIN INT64_MIN
-
 #define TYPE_INIT(type) (type)
-
-/* --- Vector Macros --- */
-// TODO: Add MSVC like vector macros
-#define VEC_TYPE(typeName, valueType)                                                                                                                                                                                                          \
-  typedef struct {                                                                                                                                                                                                                             \
-    valueType *data;                                                                                                                                                                                                                           \
-    i32 length;                                                                                                                                                                                                                                \
-    i32 capacity;                                                                                                                                                                                                                              \
-  } typeName;
-
-#define VecPush(vector, value)                                                                                                                                                                                                                 \
-  ({                                                                                                                                                                                                                                           \
-    if (vector.length >= vector.capacity) {                                                                                                                                                                                                    \
-      if (vector.capacity == 0) vector.capacity = 128;                                                                                                                                                                                         \
-      else vector.capacity *= 2;                                                                                                                                                                                                               \
-      vector.data = realloc(vector.data, vector.capacity * sizeof(*vector.data));                                                                                                                                                              \
-    }                                                                                                                                                                                                                                          \
-    vector.data[vector.length++] = value;                                                                                                                                                                                                      \
-    &vector.data[vector.length - 1];                                                                                                                                                                                                           \
-  })
-
-#define VecPop(vector)                                                                                                                                                                                                                         \
-  ({                                                                                                                                                                                                                                           \
-    assert(vector.length > 0 && "Cannot pop from empty vector");                                                                                                                                                                               \
-    typeof(vector.data[0]) value = vector.data[vector.length - 1];                                                                                                                                                                             \
-    vector.length--;                                                                                                                                                                                                                           \
-    &value;                                                                                                                                                                                                                                    \
-  })
-
-#define VecShift(vector)                                                                                                                                                                                                                       \
-  ({                                                                                                                                                                                                                                           \
-    assert(vector.length != 0 && "Length should at least be >= 1");                                                                                                                                                                            \
-    typeof(vector.data[0]) value = vector.data[0];                                                                                                                                                                                             \
-    memmove(&vector.data[0], &vector.data[1], (vector.length - 1) * sizeof(*vector.data));                                                                                                                                                     \
-    vector.length--;                                                                                                                                                                                                                           \
-    &value;                                                                                                                                                                                                                                    \
-  })
-
-#define VecUnshift(vector, value)                                                                                                                                                                                                              \
-  ({                                                                                                                                                                                                                                           \
-    if (vector.length >= vector.capacity) {                                                                                                                                                                                                    \
-      if (vector.capacity == 0) vector.capacity = 2;                                                                                                                                                                                           \
-      else vector.capacity *= 2;                                                                                                                                                                                                               \
-      vector.data = realloc(vector.data, vector.capacity * sizeof(*vector.data));                                                                                                                                                              \
-    }                                                                                                                                                                                                                                          \
-                                                                                                                                                                                                                                               \
-    if (vector.length > 0) {                                                                                                                                                                                                                   \
-      memmove(&vector.data[1], &vector.data[0], vector.length * sizeof(*vector.data));                                                                                                                                                         \
-    }                                                                                                                                                                                                                                          \
-                                                                                                                                                                                                                                               \
-    vector.data[0] = value;                                                                                                                                                                                                                    \
-    vector.length++;                                                                                                                                                                                                                           \
-    &value;                                                                                                                                                                                                                                    \
-  })
-
-#define VecInsert(vector, value, index)                                                                                                                                                                                                        \
-  ({                                                                                                                                                                                                                                           \
-    assert(index <= vector.length && "Index out of bounds for insertion");                                                                                                                                                                     \
-    if (vector.length >= vector.capacity) {                                                                                                                                                                                                    \
-      if (vector.capacity == 0) vector.capacity = 2;                                                                                                                                                                                           \
-      else vector.capacity *= 2;                                                                                                                                                                                                               \
-      vector.data = realloc(vector.data, vector.capacity * sizeof(*vector.data));                                                                                                                                                              \
-    }                                                                                                                                                                                                                                          \
-    memmove(&vector.data[index + 1], &vector.data[index], (vector.length - index) * sizeof(*vector.data));                                                                                                                                     \
-    vector.data[index] = value;                                                                                                                                                                                                                \
-    vector.length++;                                                                                                                                                                                                                           \
-    &value;                                                                                                                                                                                                                                    \
-  })
-
-#define VecAt(vector, index)                                                                                                                                                                                                                   \
-  ({                                                                                                                                                                                                                                           \
-    assert(index >= 0 && index < vector.length && "Index out of bounds");                                                                                                                                                                      \
-    &vector.data[index];                                                                                                                                                                                                                       \
-  })
-
-#define VecFree(vector)                                                                                                                                                                                                                        \
-  ({                                                                                                                                                                                                                                           \
-    assert(vector.data != NULL && "Vector data should never be NULL");                                                                                                                                                                         \
-    free(vector.data);                                                                                                                                                                                                                         \
-    vector.data = NULL;                                                                                                                                                                                                                        \
-  })
-
-/* --- Time and Platforms --- */
-i64 TimeNow();
-void WaitTime(i64 ms);
-String GetCompiler();
-String GetPlatform();
 
 /* --- Errors --- */
 typedef i32 errno_t;
@@ -270,61 +161,6 @@ enum GeneralError {
   SUCCESS,
   MEMORY_ALLOCATION_FAILED,
 };
-
-// This makes sure right alignment on 86/64 bits
-#define DEFAULT_ALIGNMENT (2 * sizeof(void *))
-
-/* --- String and Macros --- */
-#define STRING_LENGTH(s) ((sizeof(s) / sizeof((s)[0])) - sizeof((s)[0])) // NOTE: Inspired from clay.h
-#define ENSURE_STRING_LITERAL(x) ("" x "")
-
-// NOTE: If an error led you here, it's because `S` can only be used with string literals, i.e. `S("SomeString")` and not `S(yourString)` - for that use `s()`
-#define S(string) (TYPE_INIT(String){.length = STRING_LENGTH(ENSURE_STRING_LITERAL(string)), .data = (string)})
-String s(char *msg);
-
-#ifdef COMPILER_CLANG
-#define FORMAT_CHECK(fmt_pos, args_pos) __attribute__((format(printf, fmt_pos, args_pos))) // NOTE: Printf like warnings on format
-#else
-#define FORMAT_CHECK(fmt_pos, args_pos)
-#endif
-
-String FormatMalloc(const char *format, ...) FORMAT_CHECK(2, 3);
-
-VEC_TYPE(StringVector, String);
-#define StringVectorPushMany(vector, ...)                                                                                                                                                                                                      \
-  ({                                                                                                                                                                                                                                           \
-    char *values[] = {__VA_ARGS__};                                                                                                                                                                                                            \
-    size_t count = sizeof(values) / sizeof(values[0]);                                                                                                                                                                                         \
-    for (size_t i = 0; i < count; i++) {                                                                                                                                                                                                       \
-      VecPush(vector, s(values[i]));                                                                                                                                                                                                           \
-    }                                                                                                                                                                                                                                          \
-  })
-
-void SetMaxStrSize(size_t size);
-String StrNew(char *str);
-String StrNewSize(char *str, size_t len); // Without null terminator
-void StrCopy(String *destination, String *source);
-StringVector StrSplit(String *string, String *delimiter);
-bool StrEqual(String *string1, String *string2);
-String StrConcat(String *string1, String *string2);
-void StrToUpper(String *string1);
-void StrToLower(String *string1);
-bool StrIsNull(String *string);
-void StrTrim(String *string);
-void StrFree(String string);
-String StrSlice(String *str, i32 start, i32 end);
-String ConvertExe(String path);
-String ConvertPath(String path);
-
-/* --- Random --- */
-void RandomInit(); // NOTE: Must init before using
-u64 RandomGetSeed();
-void RandomSetSeed(u64 newSeed);
-i32 RandomInteger(i32 min, i32 max);
-f32 RandomFloat(f32 min, f32 max);
-
-/* --- File --- */
-#define MAX_FILES 200
 
 typedef struct {
   String name;
@@ -345,32 +181,88 @@ typedef struct folder_t {
   size_t totalCount;
 } Folder;
 
-#ifndef MAX_PATH
-#define MAX_PATH 260
+enum FileReadError { 
+  FILE_NOT_EXIST = 1, 
+  FILE_OPEN_FAILED, 
+  FILE_GET_SIZE_FAILED, 
+  FILE_READ_FAILED,
+  FILE_GET_ATTRIBUTES_FAILED,
+  FILE_WRITE_FAILED,
+  FILE_DELETE_FAILED,
+  FILE_RENAME_FAILED
+};
+
+/* --- String and Macros --- */
+#define STRING_LENGTH(s) ((sizeof(s) / sizeof((s)[0])) - sizeof((s)[0])) // NOTE: Inspired from clay.h
+#define ENSURE_STRING_LITERAL(x) ("" x "")
+
+// NOTE: If an error led you here, it's because `S` can only be used with string literals, i.e. `S("SomeString")` and not `S(yourString)` - for that use `s()`
+#define S(string) (TYPE_INIT(String){.length = STRING_LENGTH(ENSURE_STRING_LITERAL(string)), .data = (string)})
+
+#ifdef COMPILER_CLANG
+#define FORMAT_CHECK(fmt_pos, args_pos) __attribute__((format(printf, fmt_pos, args_pos))) // NOTE: Printf like warnings on format
+#else
+#define FORMAT_CHECK(fmt_pos, args_pos)
 #endif
+
+String s(char *msg);
+
+String FormatMalloc(const char *format, ...) FORMAT_CHECK(2, 3);
+
+VEC_TYPE(StringVector, String);
+
+#define StringVectorPushMany(vector, ...)                                                                                                                                                                                                      \
+  ({                                                                                                                                                                                                                                           \
+    char *values[] = {__VA_ARGS__};                                                                                                                                                                                                            \
+    size_t count = sizeof(values) / sizeof(values[0]);                                                                                                                                                                                         \
+    for (size_t i = 0; i < count; i++) {                                                                                                                                                                                                       \
+      VecPush(vector, s(values[i]));                                                                                                                                                                                                           \
+    }                                                                                                                                                                                                                                          \
+  })
+
+void SetMaxStrSize(size_t size);
+String StrNew(char *str);
+String StrNewSize(char *str, size_t len); // Without null terminator
+void StrCopy(String *destination, String *source);
+StringVector StrSplit(String *string, String *delimiter);
+bool StrEqual(String string1, String string2);
+String StrConcat(String *string1, String *string2);
+void StrToUpper(String *string1);
+void StrToLower(String *string1);
+bool StrIsNull(String *string);
+void StrTrim(String *string);
+void StrFree(String string);
+String StrSlice(String *str, i32 start, i32 end);
+String ConvertExe(String path);
+String ConvertPath(String path);
 
 String GetCwd();
 void SetCwd(String destination);
 Folder *GetDirFiles(String initial);
 Folder *NewFolder();
 void FreeFolder(Folder *folder);
-
-enum FileStatsError { FILE_GET_ATTRIBUTES_FAILED = 1 };
 errno_t FileStats(String *path, File *file);
-
-enum FileReadError { FILE_NOT_EXIST = 1, FILE_OPEN_FAILED, FILE_GET_SIZE_FAILED, FILE_READ_FAILED };
 errno_t FileRead(String *path, String *result);
-
-// TODO: enum FileWriteError {};
 errno_t FileWrite(String *path, String *data);
-
-// TODO: enum FileDeleteError {};
 errno_t FileDelete(String *path);
-
-// TODO: enum FileRenameError {};
 errno_t FileRename(String *oldPath, String *newPath);
+bool Mkdir(String path);
 
-bool Mkdir(String path); // NOTE: Mkdir if not exist
+errno_t memcpy_s(void *dest, size_t destSize, const void *src, size_t count);
+inline errno_t fopen_s(FILE **streamptr, const char *filename, const char *mode);
+
+/* --- Time and Platforms --- */
+i64 TimeNow();
+void WaitTime(i64 ms);
+String GetCompiler();
+String GetPlatform();
+
+/* --- Random --- */
+void RandomInit(); // NOTE: Must init before using
+u64 RandomGetSeed();
+void RandomSetSeed(u64 newSeed);
+i32 RandomInteger(i32 min, i32 max);
+f32 RandomFloat(f32 min, f32 max);
 
 /* --- Logger --- */
 #define RESET "\x1b[0m"
@@ -425,12 +317,20 @@ static inline void __df_cb(__df_t *__fp) {
 
 #endif
 
-/*
-  Implementation of base.h
-  Version - 2025-04-12 (0.1.1):
-  https://github.com/TomasBorquez/base.h
-*/
 #ifdef BASE_IMPLEMENTATION
+
+#include "strings.h"
+#include "fs.h"
+#include "log.h"
+#include "random.h"
+#include "hashset.h"
+
+#ifdef PLATFORM_WIN
+# include "windows/times.h"
+#endif
+#ifdef PLATFORM_LINUX
+# include "linux/times.h"
+#endif
 
 // --- Platform specific functions ---
 #if !defined(PLATFORM_WIN) && !defined(C_STANDARD_C11)
@@ -513,432 +413,6 @@ String GetPlatform() {
 #endif
 }
 
-#ifdef PLATFORM_WIN
-# include "windows/times.h"
-#endif
-#ifdef PLATFORM_LINUX
-# include "linux/times.h"
-#endif
-
-/* String Implementation */
-static size_t maxStringSize = 10000;
-
-static size_t strLength(char *str, size_t maxSize) {
-  if (str == NULL) {
-    return 0;
-  }
-
-  size_t len = 0;
-  while (len < maxSize && str[len] != '\0') {
-    len++;
-  }
-
-  return len;
-}
-
-static void addNullTerminator(char *str, size_t len) {
-  str[len] = '\0';
-}
-
-bool StrIsNull(String *str) {
-  return str == NULL || str->data == NULL;
-}
-
-void SetMaxStrSize(size_t size) {
-  maxStringSize = size;
-}
-
-String StrNewSize(char *str, size_t len) {
-  const size_t memorySize = sizeof(char) * len + 1; // NOTE: Includes null terminator
-  char *allocatedString = malloc(memorySize);
-
-  memcpy(allocatedString, str, memorySize);
-  addNullTerminator(allocatedString, len);
-  return (String){len, allocatedString};
-}
-
-String StrNew(char *str) {
-  const size_t len = strLength(str, maxStringSize);
-  if (len == 0) {
-    return (String){0, NULL};
-  }
-  const size_t memorySize = sizeof(char) * len + 1; // NOTE: Includes null terminator
-  char *allocatedString = malloc(memorySize);
-
-  memcpy(allocatedString, str, memorySize);
-  addNullTerminator(allocatedString, len);
-  return (String){len, allocatedString};
-}
-
-String s(char *msg) {
-  return (String){
-      .length = strlen(msg),
-      .data = msg,
-  };
-}
-
-String StrConcat(String *string1, String *string2) {
-  assert(!StrIsNull(string1) && "string1 should never be NULL");
-  assert(!StrIsNull(string2) && "string2 should never be NULL");
-
-  const size_t len = string1->length + string2->length;
-  const size_t memorySize = sizeof(char) * len + 1; // NOTE: Includes null terminator
-  char *allocatedString = malloc(memorySize);
-
-  memcpy_s(allocatedString, memorySize, string1->data, string1->length);
-  memcpy_s(allocatedString + string1->length, memorySize, string2->data, string2->length);
-  addNullTerminator(allocatedString, len);
-  return (String){len, allocatedString};
-};
-
-void StrCopy(String *destination, String *source) {
-  assert(!StrIsNull(destination) && "destination should never be NULL");
-  assert(!StrIsNull(source) && "source should never be NULL");
-  assert(destination->length >= source->length && "destination length should never smaller than source length");
-
-  const errno_t result = memcpy_s(destination->data, destination->length, source->data, source->length);
-
-  assert(result == 0 && "result should never be anything but 0");
-  destination->length = source->length;
-  addNullTerminator(destination->data, destination->length);
-}
-
-bool StrEqual(String *string1, String *string2) {
-  if (string1->length != string2->length) {
-    return false;
-  }
-
-  if (memcmp(string1->data, string2->data, string1->length) != 0) {
-    return false;
-  }
-  return true;
-}
-
-StringVector StrSplit(String *str, String *delimiter) {
-  assert(!StrIsNull(str) && "str should never be NULL");
-  assert(!StrIsNull(delimiter) && "delimiter should never be NULL");
-
-  char *start = str->data;
-  const char *end = str->data + str->length;
-  char *curr = start;
-  StringVector result = {0};
-  if (delimiter->length == 0) {
-    for (size_t i = 0; i < str->length; i++) {
-      String currString = StrNewSize(str->data + i, 1);
-      VecPush(result, currString);
-    }
-    return result;
-  }
-
-  while (curr < end) {
-    char *match = NULL;
-    for (char *search = curr; search <= end - delimiter->length; search++) {
-      if (memcmp(search, delimiter->data, delimiter->length) == 0) {
-        match = search;
-        break;
-      }
-    }
-
-    if (!match) {
-      String currString = StrNewSize(curr, end - curr);
-      VecPush(result, currString);
-      break;
-    }
-
-    size_t len = match - curr;
-    String currString = StrNewSize(curr, len);
-    VecPush(result, currString);
-
-    curr = match + delimiter->length;
-  }
-
-  return result;
-}
-
-void StringToUpper(String *str) {
-  for (int i = 0; i < str->length; ++i) {
-    char currChar = str->data[i];
-    str->data[i] = toupper(currChar);
-  }
-}
-
-void StrToLower(String *str) {
-  for (int i = 0; i < str->length; ++i) {
-    char currChar = str->data[i];
-    str->data[i] = tolower(currChar);
-  }
-}
-
-bool isSpace(char character) {
-  return character == ' ' || character == '\n' || character == '\t' || character == '\r';
-}
-
-void StrTrim(String *str) {
-  char *firstChar = NULL;
-  char *lastChar = NULL;
-  if (str->length == 0) {
-    return;
-  }
-
-  if (str->length == 1) {
-    if (isSpace(str->data[0])) {
-      str->data[0] = '\0';
-      str->length = 0;
-    }
-    return;
-  }
-
-  for (int i = 0; i < str->length; ++i) {
-    char *currChar = &str->data[i];
-    if (isSpace(*currChar)) {
-      continue;
-    }
-
-    if (firstChar == NULL) {
-      firstChar = currChar;
-    }
-    lastChar = currChar;
-  }
-
-  if (firstChar == NULL || lastChar == NULL) {
-    str->data[0] = '\0';
-    str->length = 0;
-    addNullTerminator(str->data, 0);
-    return;
-  }
-
-  size_t len = (lastChar - firstChar) + 1;
-  memcpy_s(str->data, str->length, firstChar, len);
-  str->length = len;
-  addNullTerminator(str->data, len);
-}
-
-String StrSlice(String *str, i32 start, i32 end) {
-  assert(start >= 0 && "start index must be non-negative");
-  assert(start <= str->length && "start index out of bounds");
-
-  if (end < 0) {
-    end = str->length + end;
-  }
-
-  assert(end >= start && "end must be greater than or equal to start");
-  assert(end <= str->length && "end index out of bounds");
-
-  size_t len = end - start;
-  return StrNewSize(str->data + start, len);
-}
-
-void StrFree(String string) {
-  free(string.data);
-}
-
-String FormatMalloc(const char *format, ...) {
-  va_list args;
-  va_start(args, format);
-  size_t size = vsnprintf(NULL, 0, format, args) + 1; // +1 for null terminator
-  va_end(args);
-
-  char *buffer = (char *)malloc(size);
-  va_start(args, format);
-  vsnprintf(buffer, size, format, args);
-  va_end(args);
-
-  return (String){.length = size - 1, .data = buffer};
-}
-
-String ConvertPath(String path) {
-  String platform = GetPlatform();
-  String result;
-
-  if (path.length >= 2 && path.data[0] == '.' && (path.data[1] == '/' || path.data[1] == '\\')) {
-    result = StrNewSize(path.data + 2, path.length - 2);
-    memcpy(result.data, path.data + 2, path.length - 2);
-  } else {
-    result = StrNewSize(path.data, path.length);
-  }
-
-  if (StrEqual(&platform, &S("linux")) || StrEqual(&platform, &S("macos"))) {
-    return result;
-  }
-
-  for (size_t i = 0; i < result.length; i++) {
-    if (result.data[i] == '/') {
-      result.data[i] = '\\';
-    }
-  }
-
-  return result;
-}
-
-String ParsePath(String path) {
-  String result;
-
-  if (path.length >= 2 && path.data[0] == '.' && (path.data[1] == '/' || path.data[1] == '\\')) {
-    result = StrNewSize(path.data + 2, path.length - 2);
-    memcpy(result.data, path.data + 2, path.length - 2);
-  } else {
-    result = StrNewSize(path.data, path.length);
-  }
-
-  return result;
-}
-
-String ConvertExe(String path) {
-  String platform = GetPlatform();
-  String exeExtension = S(".exe");
-
-  bool hasExe = false;
-  if (path.length >= exeExtension.length) {
-    String pathEnd = StrSlice(&path, path.length - exeExtension.length, path.length);
-    if (StrEqual(&pathEnd, &exeExtension)) {
-      hasExe = true;
-    }
-  }
-
-  if (StrEqual(&platform, &S("windows"))) {
-    if (hasExe) {
-      return path;
-    }
-    return StrConcat(&path, &exeExtension);
-  }
-
-  if (StrEqual(&platform, &S("linux")) || StrEqual(&platform, &S("macos"))) {
-    if (hasExe) {
-      return StrSlice(&path, 0, path.length - exeExtension.length);
-    }
-    return path;
-  }
-
-  return path;
-}
-
-/* Random Implemenation */
-static u64 seed = 0;
-void RandomInit() {
-  seed = TimeNow();
-  srand(seed);
-}
-
-u64 RandomGetSeed() {
-  return seed;
-}
-
-void RandomSetSeed(u64 newSeed) {
-  seed = newSeed;
-}
-
-i32 RandomInteger(i32 min, i32 max) {
-  assert(min <= max && "min should always be less than or equal to max");
-  assert(max - min <= INT32_MAX - 1 && "range too large");
-
-  i32 range = max - min + 1;
-
-  // Calculate scaling factor to avoid modulo bias
-  u32 buckets = RAND_MAX / range;
-  u32 limit = buckets * range;
-
-  // Reject numbers that would create bias
-  u32 r;
-  do {
-    r = rand();
-  } while (r >= limit);
-
-  return min + (r / buckets);
-}
-
-f32 RandomFloat(f32 min, f32 max) {
-  assert(min <= max && "min must be less than or equal to max");
-  f32 normalized = (f32)rand() / RAND_MAX;
-  return min + normalized * (max - min);
-}
-
-/* File Implementation */
-Folder *NewFolder() {
-  Folder *fileData = (Folder *)malloc(sizeof(Folder));
-  fileData->files = (File *)malloc(MAX_FILES * sizeof(File));
-  fileData->fileCount = 0;
-  fileData->folders = (Folder *)malloc(MAX_FILES * sizeof(Folder));
-  fileData->folderCount = 0;
-  fileData->totalCount = 0;
-  fileData->name = S("");
-  return fileData;
-};
-
-void _freeFolderRecursiveImpl(Folder *folder){ 
-  free(folder->files);
-  folder->totalCount -= folder->fileCount;
-
-  for (size_t i = 0; i < folder->folderCount; i++) {
-    Folder *subfolder = folder->folders + i;
-    _freeFolderRecursiveImpl(subfolder);
-    folder->totalCount--;
-  }
-  free(folder->folders);
-  
-  assert(folder->totalCount == 0 && "Should free every item in folder");
-}
-
-
-void FreeFolder(Folder *folder) {
-  _freeFolderRecursiveImpl(folder);
-  free(folder);
-}
-
-
-#ifdef PLATFORM_WIN
-# include "windows/files.h"
-#endif
-#ifdef PLATFORM_LINUX
-# include "linux/files.h"
-#endif
-
-/* Logger Implemenation */
-void LogInfo(const char *format, ...) {
-  printf("%s[INFO]: ", GRAY);
-  va_list args;
-  va_start(args, format);
-  vprintf(format, args);
-  va_end(args);
-  printf("%s\n", RESET);
-}
-
-void LogWarn(const char *format, ...) {
-  printf("%s[WARN]: ", ORANGE);
-  va_list args;
-  va_start(args, format);
-  vprintf(format, args);
-  va_end(args);
-  printf("%s\n", RESET);
-}
-
-void LogError(const char *format, ...) {
-  printf("%s[ERROR]: ", RED);
-  va_list args;
-  va_start(args, format);
-  vprintf(format, args);
-  va_end(args);
-  printf("%s\n", RESET);
-}
-
-void LogSuccess(const char *format, ...) {
-  printf("%s[SUCCESS]: ", GREEN);
-  va_list args;
-  va_start(args, format);
-  vprintf(format, args);
-  va_end(args);
-  printf("%s\n", RESET);
-}
-
-void LogInit() {
-#ifdef PLATFORM_WIN
-# define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
-  HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-  DWORD dwMode = 0;
-  GetConsoleMode(hOut, &dwMode);
-  dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-  SetConsoleMode(hOut, dwMode);
-#endif
-}
 #endif
 
 #endif
