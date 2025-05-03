@@ -109,8 +109,8 @@ static void setDefaultState();
 static BiltConfig state = {0};
 static Executable executable = {0};
 
-String FixPathExe(String *str) {
-  String path = ConvertPath(ConvertExe(*str));
+String FixPathExe(String str) {
+  String path = ConvertPath(ConvertExe(str));
   String cwd = GetCwd();
 #if defined(PLATFORM_WIN)
   String formatted_path = FormatMalloc("%s\\%s", cwd.data, path.data);
@@ -121,8 +121,8 @@ String FixPathExe(String *str) {
   return formatted_path;
 }
 
-String FixPath(String *str) {
-  String path = ConvertPath(*str);
+String FixPath(String str) {
+  String path = ConvertPath(str);
   String cwd = GetCwd();
 #if defined(PLATFORM_WIN)
   String formatted = FormatMalloc("%s\\%s", cwd.data, path.data);
@@ -146,9 +146,9 @@ String ConvertNinjaPath(String str) {
 }
 
 static void setDefaultState() {
-  state.source = FixPath(&S("./bilt.c"));
-  state.cachePath = FixPath(&S("./build/bilt-cache.json"));
-  state.exe = FixPath(&S("./bilt"));
+  state.source = FixPath(S("./bilt.c"));
+  state.cachePath = FixPath(S("./build/bilt-cache.json"));
+  state.exe = FixPath(S("./bilt"));
   state.buildDirectory = ConvertPath(S("./build"));
   state.compiler = GetCompiler();
 }
@@ -168,15 +168,15 @@ void CreateConfig(BiltOptions options) {
   BiltConfig config = parseBiltConfig(options);
 
   if (!StrIsNull(&config.source)) {
-    state.source = FixPath(&config.source);
+    state.source = FixPath(config.source);
   }
 
   if (!StrIsNull(&config.cachePath)) {
-    state.cachePath = FixPath(&config.cachePath);
+    state.cachePath = FixPath(config.cachePath);
   }
 
   if (!StrIsNull(&config.exe)) {
-    state.exe = FixPath(&config.exe);
+    state.exe = FixPath(config.exe);
   }
 
   if (!StrIsNull(&config.buildDirectory)) {
@@ -217,79 +217,12 @@ void StartBuild() {
   state.startTime = TimeNow();
   Mkdir(state.buildDirectory);
   readCache();
-  reBuild();
-}
-
-static bool needRebuild() {
-  File stats = {0};
-  errno_t result = FileStats(&state.source, &stats);
-  if (result != SUCCESS) {
-    LogError("Could not read fileStats %d", result);
-    return false;
-  }
-
-  if (stats.modifyTime > state.cache.lastBuild) {
-    String modifyTime = FormatMalloc("%llu", stats.modifyTime);
-    FileWrite(&state.cachePath, &modifyTime);
-    return true;
-  }
-
-  return false;
-}
-
-void reBuild() {
-  if (state.cache.firstBuild || !needRebuild()) {
-    return;
-  }
-
-  String exeNew = FormatMalloc("%s/bilt-new", state.buildDirectory.data);
-  String exeOld = FormatMalloc("%s/bilt-old", state.buildDirectory.data);
-  String exe = ConvertExe(state.exe);
-  exeNew = FixPathExe(&exeNew);
-  exeOld = FixPathExe(&exeOld);
-
-  String compileCommand;
-  if (StrEqual(&state.compiler, &S("gcc"))) {
-    compileCommand = FormatMalloc("gcc -o \"%s\" -Wall -g \"%s\"", exeNew.data, state.source.data);
-  }
-
-  if (StrEqual(&state.compiler, &S("clang"))) {
-    compileCommand = FormatMalloc("clang -o \"%s\" -Wall -g \"%s\"", exeNew.data, state.source.data);
-  }
-
-  if (StrEqual(&state.compiler, &S("MSVC"))) {
-    compileCommand = FormatMalloc("cl.exe /Fe:\"%s\" /W4 /Zi \"%s\"", exeNew.data, state.source.data);
-  }
-
-  LogWarn("%s changed rebuilding...", state.source.data);
-  errno_t rebuildResult = RunCommand(compileCommand);
-  if (rebuildResult != 0) {
-    LogError("Rebuild failed, with error: %d", rebuildResult);
-    abort();
-  }
-
-  errno_t renameResult = FileRename(&exe, &exeOld);
-  if (renameResult != SUCCESS) {
-    LogError("Error renaming original executable: %d", renameResult);
-    abort();
-  }
-
-  renameResult = FileRename(&exeNew, &exe);
-  if (renameResult != SUCCESS) {
-    LogError("Error moving new executable into place: %d", renameResult);
-    FileRename(&exeOld, &state.exe);
-    abort();
-  }
-
-  LogInfo("Rebuild finished, running %s", exe.data);
-  errno_t result = RunCommand(exe);
-  return exit(result);
 }
 
 void defaultExecutable() {
   String executableOutput = ConvertExe(S("main"));
   executable.output = ConvertPath(executableOutput);
-  executable.flags = S("-Wall -g");
+  executable.flags = S("");
   executable.linkerFlags = S("");
   executable.includes = S("");
   executable.libs = S("");
@@ -413,7 +346,7 @@ static void addDirectory(String dir) {
   if (_validFileExtensions.data == 0) {
     VecPush(_validFileExtensions, S("c"));
   }
-  Folder *initialFolder = GetDirFiles(FixPath(&dir));
+  Folder *initialFolder = GetDirFiles(FixPath(dir));
   _addDirectoryImpl(initialFolder);
   FreeFolder(initialFolder);
 }
@@ -427,7 +360,7 @@ static StringVector outputTransformer(StringVector vector) {
     String output = S("");
     for (size_t j = currentExecutable->length - 1; j > 0; j--) {
       String currentChar = StrNewSize(&currentExecutable->data[j], 1);
-      if (StrEqual(&sep, &currentChar)) {
+      if (StrEqual(sep, currentChar)) {
         break;
       }
       output = StrConcat(&currentChar, &output);
@@ -450,7 +383,7 @@ String InstallExecutable() {
   String compileCommand;
 
   // TODO: a hashmap or something
-  if (StrEqual(&state.compiler, &S("MSVC"))) {
+  if (StrEqual(state.compiler, S("MSVC"))) {
     LogError("MSVC not yet implemented");
     abort();
   } else {
@@ -502,7 +435,7 @@ String InstallExecutable() {
   ninjaOutput = StrConcat(&ninjaOutput, &target);
 
   String relativeBuildPath = FormatMalloc("%s/build.ninja", state.buildDirectory.data);
-  String buildNinjaPath = FixPath(&relativeBuildPath);
+  String buildNinjaPath = FixPath(relativeBuildPath);
   FileWrite(&buildNinjaPath, &ninjaOutput);
 
   
@@ -516,7 +449,7 @@ String InstallExecutable() {
   state.totalTime = TimeNow() - state.startTime;
   
   String relativeExePath = FormatMalloc("%s/%s", state.buildDirectory.data, executable.output.data);
-  String fullExePath = FixPath(&relativeExePath);
+  String fullExePath = FixPath(relativeExePath);
   return fullExePath;
 }
 
@@ -540,7 +473,8 @@ static void addLibraryPaths(StringVector *vector) {
 
 // TODO: Same thing here
 static void addIncludePaths(StringVector *vector) {
-  for (size_t i = 0; i < vector->length; i++) {
+  size_t i;
+  for (i = 0; i < vector->length; i++) {
     String *currInclude = VecAt((*vector), i);
     if (i == 0 && executable.includes.length == 0) {
       executable.includes = FormatMalloc("-I\"%s\"", currInclude->data);
