@@ -103,7 +103,7 @@ errno_t FileStats(String *path, File *file) {
   return SUCCESS;
 }
 
-errno_t FileRead(Arena *arena, String *path, String *result) {
+errno_t FileRead(String *path, String *result) {
   FILE *file;
   char buffer[1024];
   
@@ -115,11 +115,11 @@ errno_t FileRead(Arena *arena, String *path, String *result) {
     return FILE_OPEN_FAILED;
   }
   ssize_t charsRead = fread(buffer, sizeof(buffer), sizeof(char), file);
-  *result = StrNew(arena, buffer);
+  *result = StrNew(buffer);
 
   while (fread(buffer, sizeof(buffer), sizeof(char), file) == 1024) {
     String stringedBuffer = s(buffer);
-    *result = StrConcat(arena, result, &stringedBuffer);
+    *result = StrConcat(result, &stringedBuffer);
   }
 
   fclose(file);

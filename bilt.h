@@ -32,7 +32,6 @@ typedef struct {
   BiltCache cache;
 
   // Misc
-  Arena arena;
   bool customConfig;
   i64 startTime;
   i64 totalTime;
@@ -111,19 +110,19 @@ static BiltConfig state = {0};
 static Executable executable = {0};
 
 String FixPathExe(String *str) {
-  String path = ConvertPath(&state.arena, ConvertExe(&state.arena, *str));
+  String path = ConvertPath(ConvertExe(*str));
   String cwd = GetCwd();
 #if defined(PLATFORM_WIN)
-  String formatted_path = FormatArena(&state.arena, "%s\\%s", cwd.data, path.data);
+  String formatted_path = FormatMalloc("%s\\%s", cwd.data, path.data);
 #elif defined(PLATFORM_LINUX)
-  String formatted_path = FormatArena(&state.arena, "%s/%s", cwd.data, path.data);
+  String formatted_path = FormatMalloc("%s/%s", cwd.data, path.data);
 #endif
   StrFree(cwd);
   return formatted_path;
 }
 
 String FixPath(String *str) {
-  String path = ConvertPath(&state.arena, *str);
+  String path = ConvertPath(*str);
   String cwd = GetCwd();
 #if defined(PLATFORM_WIN)
   String formatted = FormatMalloc("%s\\%s", cwd.data, path.data);
@@ -136,7 +135,7 @@ String FixPath(String *str) {
 
 String ConvertNinjaPath(String str) {
 #ifdef PLATFORM_WIN
-  String copy = StrNewSize(&state.arena, str.data, str.length + 1);
+  String copy = StrNewSize(str.data, str.length + 1);
   memmove(&copy.data[2], &copy.data[1], str.length - 1);
   copy.data[1] = '$';
   copy.data[2] = ':';
@@ -147,21 +146,20 @@ String ConvertNinjaPath(String str) {
 }
 
 static void setDefaultState() {
-  state.arena = ArenaInit(12000 * sizeof(String));
   state.source = FixPath(&S("./bilt.c"));
   state.cachePath = FixPath(&S("./build/bilt-cache.json"));
   state.exe = FixPath(&S("./bilt"));
-  state.buildDirectory = ConvertPath(&state.arena, S("./build"));
+  state.buildDirectory = ConvertPath(S("./build"));
   state.compiler = GetCompiler();
 }
 
 static BiltConfig parseBiltConfig(BiltOptions options) {
   BiltConfig result;
-  result.compiler = StrNew(&state.arena, options.compiler);
-  result.buildDirectory = StrNew(&state.arena, options.buildDirectory);
-  result.exe = StrNew(&state.arena, options.exe);
-  result.cachePath = StrNew(&state.arena, options.cachePath);
-  result.source = StrNew(&state.arena, options.source);
+  result.compiler = StrNew(options.compiler);
+  result.buildDirectory = StrNew(options.buildDirectory);
+  result.exe = StrNew(options.exe);
+  result.cachePath = StrNew(options.cachePath);
+  result.source = StrNew(options.source);
   return result;
 }
 
@@ -182,7 +180,7 @@ void CreateConfig(BiltOptions options) {
   }
 
   if (!StrIsNull(&config.buildDirectory)) {
-    state.buildDirectory = ConvertPath(&state.arena, config.buildDirectory);
+    state.buildDirectory = ConvertPath(config.buildDirectory);
   }
 
   if (!StrIsNull(&config.compiler)) {
@@ -194,10 +192,10 @@ void CreateConfig(BiltOptions options) {
 
 errno_t readCache() {
   String cache = S("");
-  errno_t err = FileRead(&state.arena, &state.cachePath, &cache);
+  errno_t err = FileRead(&state.cachePath, &cache);
 
   if (err == FILE_NOT_EXIST) {
-    String modifyTime = FormatArena(&state.arena, "%llu", TimeNow() / 1000);
+    String modifyTime = FormatMalloc("%llu", TimeNow() / 1000);
     FileWrite(&state.cachePath, &modifyTime);
     state.cache.firstBuild = true;
     cache = modifyTime;
@@ -231,7 +229,7 @@ static bool needRebuild() {
   }
 
   if (stats.modifyTime > state.cache.lastBuild) {
-    String modifyTime = FormatArena(&state.arena, "%llu", stats.modifyTime);
+    String modifyTime = FormatMalloc("%llu", stats.modifyTime);
     FileWrite(&state.cachePath, &modifyTime);
     return true;
   }
@@ -244,23 +242,23 @@ void reBuild() {
     return;
   }
 
-  String exeNew = FormatArena(&state.arena, "%s/bilt-new", state.buildDirectory.data);
-  String exeOld = FormatArena(&state.arena, "%s/bilt-old", state.buildDirectory.data);
-  String exe = ConvertExe(&state.arena, state.exe);
+  String exeNew = FormatMalloc("%s/bilt-new", state.buildDirectory.data);
+  String exeOld = FormatMalloc("%s/bilt-old", state.buildDirectory.data);
+  String exe = ConvertExe(state.exe);
   exeNew = FixPathExe(&exeNew);
   exeOld = FixPathExe(&exeOld);
 
   String compileCommand;
   if (StrEqual(&state.compiler, &S("gcc"))) {
-    compileCommand = FormatArena(&state.arena, "gcc -o \"%s\" -Wall -g \"%s\"", exeNew.data, state.source.data);
+    compileCommand = FormatMalloc("gcc -o \"%s\" -Wall -g \"%s\"", exeNew.data, state.source.data);
   }
 
   if (StrEqual(&state.compiler, &S("clang"))) {
-    compileCommand = FormatArena(&state.arena, "clang -o \"%s\" -Wall -g \"%s\"", exeNew.data, state.source.data);
+    compileCommand = FormatMalloc("clang -o \"%s\" -Wall -g \"%s\"", exeNew.data, state.source.data);
   }
 
   if (StrEqual(&state.compiler, &S("MSVC"))) {
-    compileCommand = FormatArena(&state.arena, "cl.exe /Fe:\"%s\" /W4 /Zi \"%s\"", exeNew.data, state.source.data);
+    compileCommand = FormatMalloc("cl.exe /Fe:\"%s\" /W4 /Zi \"%s\"", exeNew.data, state.source.data);
   }
 
   LogWarn("%s changed rebuilding...", state.source.data);
@@ -289,8 +287,8 @@ void reBuild() {
 }
 
 void defaultExecutable() {
-  String executableOutput = ConvertExe(&state.arena, S("main"));
-  executable.output = ConvertPath(&state.arena, executableOutput);
+  String executableOutput = ConvertExe(S("main"));
+  executable.output = ConvertPath(executableOutput);
   executable.flags = S("-Wall -g");
   executable.linkerFlags = S("");
   executable.includes = S("");
@@ -299,11 +297,11 @@ void defaultExecutable() {
 
 static Executable parseExecutableOptions(ExecutableOptions options) {
   Executable result;
-  result.output = StrNew(&state.arena, options.output);
-  result.flags = StrNew(&state.arena, options.flags);
-  result.linkerFlags = StrNew(&state.arena, options.linkerFlags);
-  result.includes = StrNew(&state.arena, options.includes);
-  result.libs = StrNew(&state.arena, options.libs);
+  result.output = StrNew(options.output);
+  result.flags = StrNew(options.flags);
+  result.linkerFlags = StrNew(options.linkerFlags);
+  result.includes = StrNew(options.includes);
+  result.libs = StrNew(options.libs);
   return result;
 }
 
@@ -312,8 +310,8 @@ void CreateExecutable(ExecutableOptions executableOptions) {
   Executable options = parseExecutableOptions(executableOptions);
 
   if (!StrIsNull(&options.output)) {
-    String executableOutput = ConvertExe(&state.arena, options.output);
-    executable.output = ConvertPath(&state.arena, executableOutput);
+    String executableOutput = ConvertExe(options.output);
+    executable.output = ConvertPath(executableOutput);
   }
 
   if (!StrIsNull(&options.flags)) {
@@ -343,8 +341,8 @@ errno_t CreateCompileCommands() {
   
   String cwd = GetCwd();
 
-  String buildPath = StrNew(&state.arena, FormatArena(&state.arena, "%s/%s", cwd.data, ParsePath(&state.arena, state.buildDirectory).data).data);
-  String compileCommandsPath = ConvertPath(&state.arena, FormatArena(&state.arena, "%s/compile_commands.json", buildPath.data));
+  String buildPath = StrNew(FormatMalloc("%s/%s", cwd.data, ParsePath(state.buildDirectory).data).data);
+  String compileCommandsPath = ConvertPath(FormatMalloc("%s/compile_commands.json", buildPath.data));
 
   StrFree(cwd);
 
@@ -354,7 +352,7 @@ errno_t CreateCompileCommands() {
     return 1;
   }
 
-  String compdbCommand = ConvertPath(&state.arena, FormatArena(&state.arena, "ninja -f %s/build.ninja -t compdb", buildPath.data));
+  String compdbCommand = ConvertPath(FormatMalloc("ninja -f %s/build.ninja -t compdb", buildPath.data));
 
   ninjaPipe = popen(compdbCommand.data, "r");
   if (ninjaPipe == NULL) {
@@ -402,7 +400,7 @@ static void _addDirectoryImpl(Folder *folder) {
       continue;
     }
     String fullPath = FormatMalloc("%s/%s", folder->name.data, curr->name.data);
-    addFile(ConvertPath(&state.arena, fullPath));
+    addFile(ConvertPath(fullPath));
   }
 
   for (int i = 0; i < folder->folderCount; i++) {
@@ -423,16 +421,16 @@ static void addDirectory(String dir) {
 
 static StringVector outputTransformer(StringVector vector) {
   StringVector result = {0};
-  String sep = ConvertPath(&state.arena, S("/"));
+  String sep = ConvertPath(S("/"));
   for (size_t i = 0; i < vector.length; i++) {
     String *currentExecutable = VecAt(vector, i);
     String output = S("");
     for (size_t j = currentExecutable->length - 1; j > 0; j--) {
-      String currentChar = StrNewSize(&state.arena, &currentExecutable->data[j], 1);
+      String currentChar = StrNewSize(&currentExecutable->data[j], 1);
       if (StrEqual(&sep, &currentChar)) {
         break;
       }
-      output = StrConcat(&state.arena, &currentChar, &output);
+      output = StrConcat(&currentChar, &output);
     }
     output.data[output.length - 1] = 'o';
     VecPush(result, output);
@@ -456,11 +454,11 @@ String InstallExecutable() {
     LogError("MSVC not yet implemented");
     abort();
   } else {
-    linkCommand = FormatArena(&state.arena, "rule link\n  command = $cc $flags $linker_flags -o $out $in $libs\n");
-    compileCommand = FormatArena(&state.arena, "rule compile\n  command = $cc $flags $includes -c $in -o $out\n");
+    linkCommand = FormatMalloc("rule link\n  command = $cc $flags $linker_flags -o $out $in $libs\n");
+    compileCommand = FormatMalloc("rule compile\n  command = $cc $flags $includes -c $in -o $out\n");
   }
   String cwd = GetCwd();
-  String ninjaOutput = FormatArena(&state.arena,
+  String ninjaOutput = FormatMalloc(
                          "cc = %s\n"
                          "linker_flag = %s\n"
                          "flags = %s\n"
@@ -475,7 +473,7 @@ String InstallExecutable() {
                          state.compiler.data,
                          executable.linkerFlags.data,
                          executable.flags.data,
-                         ConvertNinjaPath(StrNew(&state.arena, cwd.data)).data,
+                         ConvertNinjaPath(StrNew(cwd.data)).data,
                          state.buildDirectory.data,
                          executable.output.data,
                          executable.includes.data,
@@ -491,24 +489,24 @@ String InstallExecutable() {
   for (size_t i = 0; i < executable.sources.length; i++) {
     String sourceFile = ConvertNinjaPath(*VecAt(executable.sources, i));
     String outputFile = *VecAt(outputFiles, i);
-    String source = FormatArena(&state.arena, "build $builddir/%s: compile %s\n", outputFile.data, sourceFile.data);
-    ninjaOutput = StrConcat(&state.arena, &ninjaOutput, &source);
-    outputString = FormatArena(&state.arena, "%s $builddir/%s", outputString.data, outputFile.data);
+    String source = FormatMalloc("build $builddir/%s: compile %s\n", outputFile.data, sourceFile.data);
+    ninjaOutput = StrConcat(&ninjaOutput, &source);
+    outputString = FormatMalloc("%s $builddir/%s", outputString.data, outputFile.data);
   }
 
-  String target = FormatArena(&state.arena,
+  String target = FormatMalloc(
                     "build $target: link%s\n"
                     "\n"
                     "default $target\n",
                     outputString.data);
-  ninjaOutput = StrConcat(&state.arena, &ninjaOutput, &target);
+  ninjaOutput = StrConcat(&ninjaOutput, &target);
 
-  String relativeBuildPath = FormatArena(&state.arena, "%s/build.ninja", state.buildDirectory.data);
+  String relativeBuildPath = FormatMalloc("%s/build.ninja", state.buildDirectory.data);
   String buildNinjaPath = FixPath(&relativeBuildPath);
   FileWrite(&buildNinjaPath, &ninjaOutput);
 
   
-  errno_t result = RunCommand(FormatArena(&state.arena, "ninja -f %s", buildNinjaPath.data));
+  errno_t result = RunCommand(FormatMalloc("ninja -f %s", buildNinjaPath.data));
   if (result != 0) {
     LogError("Ninja file compilation failed with code: %d", result);
     abort();
@@ -517,7 +515,7 @@ String InstallExecutable() {
   LogSuccess("Ninja file compilation done");
   state.totalTime = TimeNow() - state.startTime;
   
-  String relativeExePath = FormatArena(&state.arena, "%s/%s", state.buildDirectory.data, executable.output.data);
+  String relativeExePath = FormatMalloc("%s/%s", state.buildDirectory.data, executable.output.data);
   String fullExePath = FixPath(&relativeExePath);
   return fullExePath;
 }
@@ -532,11 +530,11 @@ static void addLibraryPaths(StringVector *vector) {
   for (size_t i = 0; i < vector->length; i++) {
     String *currLib = VecAt((*vector), i);
     if (i == 0 && executable.libs.length == 0) {
-      executable.libs = FormatArena(&state.arena, "-L\"%s\"", currLib->data);
+      executable.libs = FormatMalloc("-L\"%s\"", currLib->data);
       continue;
     }
 
-    executable.libs = FormatArena(&state.arena, "%s -L\"%s\"", executable.libs.data, currLib->data);
+    executable.libs = FormatMalloc("%s -L\"%s\"", executable.libs.data, currLib->data);
   }
 }
 
@@ -545,11 +543,11 @@ static void addIncludePaths(StringVector *vector) {
   for (size_t i = 0; i < vector->length; i++) {
     String *currInclude = VecAt((*vector), i);
     if (i == 0 && executable.includes.length == 0) {
-      executable.includes = FormatArena(&state.arena, "-I\"%s\"", currInclude->data);
+      executable.includes = FormatMalloc("-I\"%s\"", currInclude->data);
       continue;
     }
 
-    executable.includes = FormatArena(&state.arena, "%s -I\"%s\"", executable.includes.data, currInclude->data);
+    executable.includes = FormatMalloc("%s -I\"%s\"", executable.includes.data, currInclude->data);
   }
 }
 
@@ -557,16 +555,15 @@ static void linkSystemLibraries(StringVector *vector) {
   for (size_t i = 0; i < vector->length; i++) {
     String *currLib = VecAt((*vector), i);
     if (i == 0 && executable.libs.length == 0) {
-      executable.libs = FormatArena(&state.arena, "-l%s", currLib->data);
+      executable.libs = FormatMalloc("-l%s", currLib->data);
       continue;
     }
 
-    executable.libs = FormatArena(&state.arena, "%s -l%s", executable.libs.data, currLib->data);
+    executable.libs = FormatMalloc("%s -l%s", executable.libs.data, currLib->data);
   }
 }
 
 void EndBuild() {
   LogInfo("Build took: %llums", state.totalTime);
-  ArenaFree(&state.arena);
 }
 #endif

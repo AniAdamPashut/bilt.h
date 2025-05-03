@@ -155,7 +155,7 @@ errno_t FileStats(String *path, File *result) {
   return SUCCESS;
 }
 
-errno_t FileRead(Arena *arena, String *path, String *result) {
+errno_t FileRead(String *path, String *result) {
   HANDLE hFile = INVALID_HANDLE_VALUE;
 
   char *pathStr = malloc(path->length + 1);
@@ -188,7 +188,7 @@ errno_t FileRead(Arena *arena, String *path, String *result) {
     return FILE_GET_SIZE_FAILED;
   }
 
-  char *buffer = (char *)ArenaAlloc(arena, fileSize.QuadPart);
+  char *buffer = (char *)malloc(fileSize.QuadPart);
   if (!buffer) {
     LogError("Memory allocation failed");
     CloseHandle(hFile);
@@ -204,7 +204,7 @@ errno_t FileRead(Arena *arena, String *path, String *result) {
     return FILE_READ_FAILED;
   }
 
-  *result = StrNewSize(arena, buffer, (size_t)bytesRead);
+  *result = StrNewSize(buffer, (size_t)bytesRead);
 
   CloseHandle(hFile);
   free(pathStr);

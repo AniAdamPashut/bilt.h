@@ -271,21 +271,8 @@ enum GeneralError {
   MEMORY_ALLOCATION_FAILED,
 };
 
-/* --- Arena --- */
-typedef struct {
-  int8_t *buffer;
-  size_t bufferLength;
-  size_t prevOffset;
-  size_t currOffset;
-} Arena;
-
 // This makes sure right alignment on 86/64 bits
 #define DEFAULT_ALIGNMENT (2 * sizeof(void *))
-
-Arena ArenaInit(size_t size);
-void *ArenaAlloc(Arena *arena, size_t size);
-void ArenaFree(Arena *arena);
-void ArenaReset(Arena *arena);
 
 /* --- String and Macros --- */
 #define STRING_LENGTH(s) ((sizeof(s) / sizeof((s)[0])) - sizeof((s)[0])) // NOTE: Inspired from clay.h
@@ -301,7 +288,7 @@ String s(char *msg);
 #define FORMAT_CHECK(fmt_pos, args_pos)
 #endif
 
-String FormatArena(Arena *arena, const char *format, ...) FORMAT_CHECK(2, 3);
+String FormatMalloc(const char *format, ...) FORMAT_CHECK(2, 3);
 
 VEC_TYPE(StringVector, String);
 #define StringVectorPushMany(vector, ...)                                                                                                                                                                                                      \
@@ -314,20 +301,20 @@ VEC_TYPE(StringVector, String);
   })
 
 void SetMaxStrSize(size_t size);
-String StrNew(Arena *arena, char *str);
-String StrNewSize(Arena *arena, char *str, size_t len); // Without null terminator
+String StrNew(char *str);
+String StrNewSize(char *str, size_t len); // Without null terminator
 void StrCopy(String *destination, String *source);
-StringVector StrSplit(Arena *arena, String *string, String *delimiter);
+StringVector StrSplit(String *string, String *delimiter);
 bool StrEqual(String *string1, String *string2);
-String StrConcat(Arena *arena, String *string1, String *string2);
+String StrConcat(String *string1, String *string2);
 void StrToUpper(String *string1);
 void StrToLower(String *string1);
 bool StrIsNull(String *string);
 void StrTrim(String *string);
 void StrFree(String string);
-String StrSlice(Arena *arena, String *str, i32 start, i32 end);
-String ConvertExe(Arena *arena, String path);
-String ConvertPath(Arena *arena, String path);
+String StrSlice(String *str, i32 start, i32 end);
+String ConvertExe(String path);
+String ConvertPath(String path);
 
 /* --- Random --- */
 void RandomInit(); // NOTE: Must init before using
@@ -372,7 +359,7 @@ enum FileStatsError { FILE_GET_ATTRIBUTES_FAILED = 1 };
 errno_t FileStats(String *path, File *file);
 
 enum FileReadError { FILE_NOT_EXIST = 1, FILE_OPEN_FAILED, FILE_GET_SIZE_FAILED, FILE_READ_FAILED };
-errno_t FileRead(Arena *arena, String *path, String *result);
+errno_t FileRead(String *path, String *result);
 
 // TODO: enum FileWriteError {};
 errno_t FileWrite(String *path, String *data);
@@ -409,9 +396,9 @@ void LogInit();
 #define __DEFER(N) __DEFER_(N)
 #define __DEFER_(N) __DEFER__(__DEFER_FUNCTION_##N, __DEFER_VARIABLE_##N)
 #define __DEFER__(F, V)                                                                                                                                                                                                                        \
-  auto void FormatArena(int *);                                                                                                                                                                                                                          \
-  [[gnu::cleanup(FormatArena)]] int V;                                                                                                                                                                                                                   \
-  auto void FormatArena(int *)
+  auto void FormatMalloc(int *);                                                                                                                                                                                                                          \
+  [[gnu::cleanup(FormatMalloc)]] int V;                                                                                                                                                                                                                   \
+  auto void FormatMalloc(int *)
 
 /* - Clang implementation -
   NOTE: Must compile with flag `-fblocks`
@@ -533,60 +520,6 @@ String GetPlatform() {
 # include "linux/times.h"
 #endif
 
-/* Arena Implemenation */
-// https://www.gingerbill.org/article/2019/02/08/memory-allocation-strategies-002/
-static intptr_t alignForward(const intptr_t ptr) {
-  intptr_t p, a, modulo;
-
-  p = ptr;
-  a = (intptr_t)DEFAULT_ALIGNMENT;
-  // Same as (p % a) but faster as 'a' is a power of two
-  modulo = p & (a - 1);
-
-  if (modulo != 0) {
-    // If 'p' address is not aligned, push the address to the
-    // next value which is aligned
-    p += a - modulo;
-  }
-  return p;
-}
-
-void *ArenaAlloc(Arena *arena, const size_t size) {
-  // Align 'currPtr' forward to the specified alignment
-  intptr_t currPtr = (intptr_t)arena->buffer + (intptr_t)arena->currOffset;
-  intptr_t offset = alignForward(currPtr);
-  offset -= (intptr_t)arena->buffer; // Change to relative offset
-
-  if (offset + size > arena->bufferLength) {
-    LogError("Arena ran out of space left, bufferLength: %llu", arena->bufferLength);
-    return NULL;
-  }
-
-  void *ptr = &arena->buffer[offset];
-  arena->prevOffset = offset;
-  arena->currOffset = offset + size;
-
-  memset(ptr, 0, size);
-  return ptr;
-}
-
-void ArenaFree(Arena *arena) {
-  free(arena->buffer);
-}
-
-void ArenaReset(Arena *arena) {
-  arena->currOffset = 0;
-}
-
-Arena ArenaInit(size_t size) {
-  return (Arena){
-      .buffer = (i8 *)malloc(size),
-      .bufferLength = size,
-      .prevOffset = 0,
-      .currOffset = 0,
-  };
-}
-
 /* String Implementation */
 static size_t maxStringSize = 10000;
 
@@ -615,22 +548,22 @@ void SetMaxStrSize(size_t size) {
   maxStringSize = size;
 }
 
-String StrNewSize(Arena *arena, char *str, size_t len) {
+String StrNewSize(char *str, size_t len) {
   const size_t memorySize = sizeof(char) * len + 1; // NOTE: Includes null terminator
-  char *allocatedString = ArenaAlloc(arena, memorySize);
+  char *allocatedString = malloc(memorySize);
 
   memcpy(allocatedString, str, memorySize);
   addNullTerminator(allocatedString, len);
   return (String){len, allocatedString};
 }
 
-String StrNew(Arena *arena, char *str) {
+String StrNew(char *str) {
   const size_t len = strLength(str, maxStringSize);
   if (len == 0) {
     return (String){0, NULL};
   }
   const size_t memorySize = sizeof(char) * len + 1; // NOTE: Includes null terminator
-  char *allocatedString = ArenaAlloc(arena, memorySize);
+  char *allocatedString = malloc(memorySize);
 
   memcpy(allocatedString, str, memorySize);
   addNullTerminator(allocatedString, len);
@@ -644,13 +577,13 @@ String s(char *msg) {
   };
 }
 
-String StrConcat(Arena *arena, String *string1, String *string2) {
+String StrConcat(String *string1, String *string2) {
   assert(!StrIsNull(string1) && "string1 should never be NULL");
   assert(!StrIsNull(string2) && "string2 should never be NULL");
 
   const size_t len = string1->length + string2->length;
   const size_t memorySize = sizeof(char) * len + 1; // NOTE: Includes null terminator
-  char *allocatedString = ArenaAlloc(arena, memorySize);
+  char *allocatedString = malloc(memorySize);
 
   memcpy_s(allocatedString, memorySize, string1->data, string1->length);
   memcpy_s(allocatedString + string1->length, memorySize, string2->data, string2->length);
@@ -681,7 +614,7 @@ bool StrEqual(String *string1, String *string2) {
   return true;
 }
 
-StringVector StrSplit(Arena *arena, String *str, String *delimiter) {
+StringVector StrSplit(String *str, String *delimiter) {
   assert(!StrIsNull(str) && "str should never be NULL");
   assert(!StrIsNull(delimiter) && "delimiter should never be NULL");
 
@@ -691,7 +624,7 @@ StringVector StrSplit(Arena *arena, String *str, String *delimiter) {
   StringVector result = {0};
   if (delimiter->length == 0) {
     for (size_t i = 0; i < str->length; i++) {
-      String currString = StrNewSize(arena, str->data + i, 1);
+      String currString = StrNewSize(str->data + i, 1);
       VecPush(result, currString);
     }
     return result;
@@ -707,13 +640,13 @@ StringVector StrSplit(Arena *arena, String *str, String *delimiter) {
     }
 
     if (!match) {
-      String currString = StrNewSize(arena, curr, end - curr);
+      String currString = StrNewSize(curr, end - curr);
       VecPush(result, currString);
       break;
     }
 
     size_t len = match - curr;
-    String currString = StrNewSize(arena, curr, len);
+    String currString = StrNewSize(curr, len);
     VecPush(result, currString);
 
     curr = match + delimiter->length;
@@ -780,7 +713,7 @@ void StrTrim(String *str) {
   addNullTerminator(str->data, len);
 }
 
-String StrSlice(Arena *arena, String *str, i32 start, i32 end) {
+String StrSlice(String *str, i32 start, i32 end) {
   assert(start >= 0 && "start index must be non-negative");
   assert(start <= str->length && "start index out of bounds");
 
@@ -792,7 +725,7 @@ String StrSlice(Arena *arena, String *str, i32 start, i32 end) {
   assert(end <= str->length && "end index out of bounds");
 
   size_t len = end - start;
-  return StrNewSize(arena, str->data + start, len);
+  return StrNewSize(str->data + start, len);
 }
 
 void StrFree(String string) {
@@ -813,29 +746,15 @@ String FormatMalloc(const char *format, ...) {
   return (String){.length = size - 1, .data = buffer};
 }
 
-String FormatArena(Arena *arena, const char *format, ...) {
-  va_list args;
-  va_start(args, format);
-  size_t size = vsnprintf(NULL, 0, format, args) + 1; // +1 for null terminator
-  va_end(args);
-
-  char *buffer = (char *)ArenaAlloc(arena, size);
-  va_start(args, format);
-  vsnprintf(buffer, size, format, args);
-  va_end(args);
-
-  return (String){.length = size - 1, .data = buffer};
-}
-
-String ConvertPath(Arena *arena, String path) {
+String ConvertPath(String path) {
   String platform = GetPlatform();
   String result;
 
   if (path.length >= 2 && path.data[0] == '.' && (path.data[1] == '/' || path.data[1] == '\\')) {
-    result = StrNewSize(arena, path.data + 2, path.length - 2);
+    result = StrNewSize(path.data + 2, path.length - 2);
     memcpy(result.data, path.data + 2, path.length - 2);
   } else {
-    result = StrNewSize(arena, path.data, path.length);
+    result = StrNewSize(path.data, path.length);
   }
 
   if (StrEqual(&platform, &S("linux")) || StrEqual(&platform, &S("macos"))) {
@@ -851,26 +770,26 @@ String ConvertPath(Arena *arena, String path) {
   return result;
 }
 
-String ParsePath(Arena *arena, String path) {
+String ParsePath(String path) {
   String result;
 
   if (path.length >= 2 && path.data[0] == '.' && (path.data[1] == '/' || path.data[1] == '\\')) {
-    result = StrNewSize(arena, path.data + 2, path.length - 2);
+    result = StrNewSize(path.data + 2, path.length - 2);
     memcpy(result.data, path.data + 2, path.length - 2);
   } else {
-    result = StrNewSize(arena, path.data, path.length);
+    result = StrNewSize(path.data, path.length);
   }
 
   return result;
 }
 
-String ConvertExe(Arena *arena, String path) {
+String ConvertExe(String path) {
   String platform = GetPlatform();
   String exeExtension = S(".exe");
 
   bool hasExe = false;
   if (path.length >= exeExtension.length) {
-    String pathEnd = StrSlice(arena, &path, path.length - exeExtension.length, path.length);
+    String pathEnd = StrSlice(&path, path.length - exeExtension.length, path.length);
     if (StrEqual(&pathEnd, &exeExtension)) {
       hasExe = true;
     }
@@ -880,12 +799,12 @@ String ConvertExe(Arena *arena, String path) {
     if (hasExe) {
       return path;
     }
-    return StrConcat(arena, &path, &exeExtension);
+    return StrConcat(&path, &exeExtension);
   }
 
   if (StrEqual(&platform, &S("linux")) || StrEqual(&platform, &S("macos"))) {
     if (hasExe) {
-      return StrSlice(arena, &path, 0, path.length - exeExtension.length);
+      return StrSlice(&path, 0, path.length - exeExtension.length);
     }
     return path;
   }
