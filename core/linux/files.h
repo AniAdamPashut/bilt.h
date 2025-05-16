@@ -1,7 +1,5 @@
-#ifndef BASE_H
-# include "../base.h"
-#endif
-
+#ifndef LINUX_FILES_H
+#define LINUX_FILES_H
 
 #ifdef PLATFORM_LINUX
 
@@ -12,10 +10,12 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <linux/limits.h>
+#include "../base.h"
+#include "../log.h"
 
 String GetCwd() {
-  char *cwd = malloc(PATH_MAX);
-  if (getcwd(cwd, MAX_PATH) == NULL) {
+  char *cwd = malloc(PATH_MAX + 1);
+  if (getcwd(cwd, PATH_MAX) == NULL) {
     LogError("Wasn't able to call getcwd, %d", errno);
     abort();
   }
@@ -103,7 +103,7 @@ errno_t FileStats(String *path, File *file) {
   return SUCCESS;
 }
 
-errno_t FileRead(Arena *arena, String *path, String *result) {
+errno_t FileRead(String *path, String *result) {
   FILE *file;
   char buffer[1024];
   
@@ -115,11 +115,11 @@ errno_t FileRead(Arena *arena, String *path, String *result) {
     return FILE_OPEN_FAILED;
   }
   ssize_t charsRead = fread(buffer, sizeof(buffer), sizeof(char), file);
-  *result = StrNew(arena, buffer);
+  *result = StrNew(buffer);
 
   while (fread(buffer, sizeof(buffer), sizeof(char), file) == 1024) {
     String stringedBuffer = s(buffer);
-    *result = StrConcat(arena, result, &stringedBuffer);
+    *result = StrConcat(result, &stringedBuffer);
   }
 
   fclose(file);
@@ -176,5 +176,7 @@ bool Mkdir(String path) {
 
   return true;
 }
+
+#endif
 
 #endif

@@ -1,5 +1,5 @@
 #ifndef BASE_H
-# include "../base.h"
+# include "core/base.h"
 #endif
 
 #ifdef PLATFORM_WIN
