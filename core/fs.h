@@ -1,7 +1,7 @@
 #ifndef FILESYSTEM_H
 #define FILESYSTEM_H
 
-#include "strings.h"
+#include "str.h"
 
 typedef struct {
   String name;

@@ -208,7 +208,7 @@ static inline void __df_cb(__df_t *__fp) {
 #include "fs.h"
 #include "log.h"
 #include "random.h"
-#include "strings.h"
+#include "str.h"
 #include "vectors.h"
 
 #ifdef PLATFORM_WIN
