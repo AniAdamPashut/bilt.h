@@ -2,11 +2,15 @@
 #define RANDOM_H
 
 #ifndef BASE_H
-# include "base.h"
+# include "core/base.h"
 #endif
 
-#ifdef BASE_IMPLEMENTATION
-
+/* --- Random --- */
+void RandomInit(); // NOTE: Must init before using
+u64 RandomGetSeed();
+void RandomSetSeed(u64 newSeed);
+i32 RandomInteger(i32 min, i32 max);
+f32 RandomFloat(f32 min, f32 max);
 void RandomInit() {
   i64 seed = TimeNow();
   srand(seed);
@@ -36,7 +40,5 @@ f32 RandomFloat(f32 min, f32 max) {
   f32 normalized = (f32)rand() / RAND_MAX;
   return min + normalized * (max - min);
 }
-
-#endif
 
 #endif

@@ -1,38 +1,81 @@
-#ifndef STRINGS_H
-#define STRINGS_H
+#ifndef STRING_H
+#define STRING_H
 
-#ifndef BASE_H
-# include "base.h"
-#endif
+#include <stdbool.h>
+#include "base.h"
+#include "vectors.h"
 
-#ifdef BASE_IMPLEMENTATION
+typedef struct {
+  size_t length; // Does not include null terminator
+  char *data;
+} String;
 
-/* String Implementation */
-static size_t maxStringSize = 10000;
+#define TYPE_INIT(type) (type)
 
-static size_t strLength(char *str, size_t maxSize) {
-  if (str == NULL) {
-    return 0;
+/* --- String and Macros --- */
+#define STRING_LENGTH(s) ((sizeof(s) / sizeof((s)[0])) - sizeof((s)[0])) // NOTE: Inspired from clay.h
+#define ENSURE_STRING_LITERAL(x) ("" x "")
+
+// NOTE: If an error led you here, it's because `S` can only be used with string literals, i.e. `S("SomeString")` and not `S(yourString)` - for that use `s()`
+#define S(string) (TYPE_INIT(String){.length = STRING_LENGTH(ENSURE_STRING_LITERAL(string)), .data = (string)})
+
+String s(char *msg);
+
+String FormatMalloc(const char *format, ...) FORMAT_CHECK(2, 3);
+
+errno_t memcpy_s(void *dest, size_t destSize, const void *src, size_t count);
+String GetCompiler();
+String GetPlatform();
+
+
+VEC_TYPE(StringVector, String);
+
+#define StringVectorPushMany(vector, ...)                                                                                                                                                                                                      \
+  ({                                                                                                                                                                                                                                           \
+    char *values[] = {__VA_ARGS__};                                                                                                                                                                                                            \
+    size_t count = sizeof(values) / sizeof(values[0]);                                                                                                                                                                                         \
+    for (size_t i = 0; i < count; i++) {                                                                                                                                                                                                       \
+      VecPush(vector, s(values[i]));                                                                                                                                                                                                           \
+    }                                                                                                                                                                                                                                          \
+  })
+
+String StrNew(char *str);
+String StrNewSize(char *str, size_t len); // Without null terminator
+void StrCopy(String *destination, String *source);
+StringVector StrSplit(String *string, String *delimiter);
+bool StrEqual(String string1, String string2);
+String StrConcat(String *string1, String *string2);
+void StrToUpper(String *string1);
+void StrToLower(String *string1);
+bool StrIsNull(String *string);
+void StrTrim(String *string);
+void StrFree(String string);
+String StrSlice(String *str, i32 start, i32 end);
+String ConvertExe(String path);
+String ConvertPath(String path);
+String ParsePath(String path);
+
+errno_t memcpy_s(void *dest, size_t destSize, const void *src, size_t count) {
+  if (dest == NULL) {
+    return EINVAL;
   }
 
-  size_t len = 0;
-  while (len < maxSize && str[len] != '\0') {
-    len++;
+  if (src == NULL || destSize < count) {
+    memset(dest, 0, destSize);
+    return EINVAL;
   }
 
-  return len;
+  memcpy(dest, src, count);
+  return 0;
 }
 
+/* String Implementation */
 static void addNullTerminator(char *str, size_t len) {
   str[len] = '\0';
 }
 
 bool StrIsNull(String *str) {
   return str == NULL || str->data == NULL;
-}
-
-void SetMaxStrSize(size_t size) {
-  maxStringSize = size;
 }
 
 String StrNewSize(char *str, size_t len) {
@@ -45,7 +88,10 @@ String StrNewSize(char *str, size_t len) {
 }
 
 String StrNew(char *str) {
-  const size_t len = strLength(str, maxStringSize);
+  if (str == NULL) {
+    return (String){0, NULL};
+  }
+  const size_t len = strlen(str);
   if (len == 0) {
     return (String){0, NULL};
   }
@@ -298,7 +344,5 @@ String ConvertExe(String path) {
 
   return path;
 }
-
-#endif
 
 #endif

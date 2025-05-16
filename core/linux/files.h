@@ -1,7 +1,5 @@
-#ifndef BASE_H
-# include "../base.h"
-#endif
-
+#ifndef LINUX_FILES_H
+#define LINUX_FILES_H
 
 #ifdef PLATFORM_LINUX
 
@@ -12,6 +10,8 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <linux/limits.h>
+#include "../base.h"
+#include "../log.h"
 
 String GetCwd() {
   char *cwd = malloc(PATH_MAX + 1);
@@ -176,5 +176,7 @@ bool Mkdir(String path) {
 
   return true;
 }
+
+#endif
 
 #endif

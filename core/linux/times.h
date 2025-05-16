@@ -1,5 +1,8 @@
+#ifndef LINUX_TIMES_H
+#define LINUX_TIMES_H
+
 #ifndef BASE_H
-# include "../base.h"
+# include "core/base.h"
 #endif
 
 #ifdef PLATFORM_LINUX
@@ -20,5 +23,7 @@ void WaitTime(i64 ms) {
   ts.tv_nsec = (ms % 1000) * 1000000;
   nanosleep(&ts, NULL);
 }
+
+#endif
 
 #endif

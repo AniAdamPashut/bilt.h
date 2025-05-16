@@ -1,11 +1,19 @@
 #ifndef LOG_H
 #define LOG_H
 
-#ifndef BASE_H
-# include "base.h"
-#endif
+#include "base.h"
 
-#ifdef BASE_IMPLEMENTATION
+#define RESET "\x1b[0m"
+#define GRAY "\x1b[38;2;192;192;192m"
+#define RED "\x1b[0;31m"
+#define GREEN "\x1b[0;32m"
+#define ORANGE "\x1b[0;33m"
+
+void LogInfo(const char *format, ...) FORMAT_CHECK(1, 2);
+void LogWarn(const char *format, ...) FORMAT_CHECK(1, 2);
+void LogError(const char *format, ...) FORMAT_CHECK(1, 2);
+void LogSuccess(const char *format, ...) FORMAT_CHECK(1, 2);
+void LogInit();
 
 void LogInfo(const char *format, ...) {
   printf("%s[INFO]: ", GRAY);
@@ -53,7 +61,5 @@ void LogInit() {
   SetConsoleMode(hOut, dwMode);
 #endif
 }
-
-#endif
 
 #endif

@@ -1,11 +1,8 @@
 #ifndef VECTORS_H
 #define VECTORS_H
 
-#ifndef BASE_H
-# include "base.h"
-#endif
+#include "base.h"
 
-/* --- Vector Macros --- */
 // TODO: Add MSVC like vector macros
 #define VEC_TYPE(typeName, valueType)                                                                                                                                                                                                          \
   typedef struct {                                                                                                                                                                                                                             \

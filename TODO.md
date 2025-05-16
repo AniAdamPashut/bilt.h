@@ -2,7 +2,7 @@
 - [x] rewrite for windows and linux
 - [x] Support for multiple file extensions
 - [x] Make it possible to set a compiler by hand
-- [ ] Remove the usage of the arena (literally crashes on large projects)
+- [x] Remove the usage of the arena (literally crashes on large projects)
 - [ ] Check that users doesn't include files twice
 - [ ] Add non-recursive directories
 - [ ] Support creating libraries (static and dynamic)

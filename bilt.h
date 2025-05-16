@@ -4,7 +4,7 @@
 #define BASE_IMPLEMENTATION
 #endif
 
-#include "base/base.h"
+#include "core/base.h"
 
 typedef struct {
   i64 lastBuild;
@@ -60,38 +60,37 @@ typedef struct {
 
 void CreateConfig(BiltOptions options);
 void StartBuild();
-void reBuild();
 void CreateExecutable(ExecutableOptions executableOptions);
 
+static void addLibraryPaths(StringVector *vector);
 #define AddLibraryPaths(...)                                                                                                                                                                                                                   \
   ({                                                                                                                                                                                                                                           \
     StringVector vector = {0};                                                                                                                                                                                                                 \
     StringVectorPushMany(vector, __VA_ARGS__);                                                                                                                                                                                                 \
     addLibraryPaths(&vector);                                                                                                                                                                                                                  \
   })
-static void addLibraryPaths(StringVector *vector);
 
+static void addIncludePaths(StringVector *vector);
 #define AddIncludePaths(...)                                                                                                                                                                                                                   \
   ({                                                                                                                                                                                                                                           \
     StringVector vector = {0};                                                                                                                                                                                                                 \
     StringVectorPushMany(vector, __VA_ARGS__);                                                                                                                                                                                                 \
     addIncludePaths(&vector);                                                                                                                                                                                                                  \
   })
-static void addIncludePaths(StringVector *vector);
 
+static void linkSystemLibraries(StringVector *vector);
 #define LinkSystemLibraries(...)                                                                                                                                                                                                               \
   ({                                                                                                                                                                                                                                           \
     StringVector vector = {0};                                                                                                                                                                                                                 \
     StringVectorPushMany(vector, __VA_ARGS__);                                                                                                                                                                                                 \
     linkSystemLibraries(&vector);                                                                                                                                                                                                              \
   })
-static void linkSystemLibraries(StringVector *vector);
 
-#define AddFile(source) addFile(S(source));
 static void addFile(String source);
+#define AddFile(source) addFile(S(source));
 
-#define AddDirectory(dir) addDirectory(S(dir));
 static void addDirectory(String dir);
+#define AddDirectory(dir) addDirectory(S(dir));
 
 StringVector _validFileExtensions = {0};
 
@@ -327,7 +326,7 @@ static bool isValidFileExtension(char *ext) {
 static void _addDirectoryImpl(Folder *folder) {
   LogInfo("Steping into folder %s", folder->name.data);
   
-  for (int i = 0; i < folder->fileCount; i++) {
+  for (size_t i = 0; i < folder->fileCount; i++) {
     File* curr = folder->files + i;
     if (!isValidFileExtension(curr->extension)) {
       continue;
