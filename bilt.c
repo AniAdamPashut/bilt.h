@@ -9,8 +9,9 @@ i32 main() {
 
     AllowFileExtensions("c");
     // Files to compile
+    AddFile("./src/main.c");
     AddDirectory("./src");
-    
+    AddIncludePaths("core");
     // Compiles all files parallely with ninja
     String exePath = InstallExecutable();
 

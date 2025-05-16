@@ -5,6 +5,7 @@
 #endif
 
 #include "core/base.h"
+#include "core/hashset.h"
 
 typedef struct {
   i64 lastBuild;
@@ -48,6 +49,7 @@ typedef struct {
   String includes;
   String libs;
   StringVector sources;
+  HashSet *fileSet;
 } Executable;
 
 typedef struct {
@@ -87,12 +89,12 @@ static void linkSystemLibraries(StringVector *vector);
   })
 
 static void addFile(String source);
-#define AddFile(source) addFile(S(source));
+#define AddFile(source) addFile(FixPath(S(source)));
 
 static void addDirectory(String dir);
 #define AddDirectory(dir) addDirectory(S(dir));
 
-StringVector _validFileExtensions = {0};
+static StringVector _validFileExtensions = {0};
 
 #define AllowFileExtensions(...) StringVectorPushMany(_validFileExtensions, __VA_ARGS__)
 
@@ -261,6 +263,10 @@ void CreateExecutable(ExecutableOptions executableOptions) {
   if (!StrIsNull(&options.libs)) {
     executable.libs = options.libs;
   }
+
+  if (executable.fileSet == NULL) {
+    executable.fileSet = HashSetNew(100);
+  }
 }
 
 // TODO: Implement for linux
@@ -310,6 +316,11 @@ errno_t CreateCompileCommands() {
 
 static void addFile(String source) {
   LogInfo("Adding file %s", source.data);
+  if (HashSetContains(executable.fileSet, source)) {
+    LogInfo("File %s already exists", source.data);
+    return;
+  }
+  HashSetInsert(executable.fileSet, source);
   VecPush(executable.sources, source);
 }
 
